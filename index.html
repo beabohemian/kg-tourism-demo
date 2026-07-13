@@ -97,13 +97,13 @@
         </div>
       </div>
     </div>
-    <nav class="max-w-[1600px] mx-auto px-6 flex gap-1 border-t border-white/10">
-      <a class="px-4 py-2.5 text-sm font-medium text-white bg-white/10 border-b-2 border-brand-400">Панель управления</a>
-      <a class="px-4 py-2.5 text-sm text-brand-200 hover:text-white">Аналитика регионов</a>
-      <a class="px-4 py-2.5 text-sm text-brand-200 hover:text-white">Реестр операторов</a>
-      <a class="px-4 py-2.5 text-sm text-brand-200 hover:text-white">Отчёты для МИД и ГНС</a>
-      <a class="px-4 py-2.5 text-sm text-brand-200 hover:text-white">Управление кризисами</a>
-      <a class="px-4 py-2.5 text-sm text-brand-200 hover:text-white">Настройки</a>
+    <nav class="max-w-[1600px] mx-auto px-6 flex gap-1 border-t border-white/10 overflow-x-auto scrollbar-thin">
+      <a v-for="r in routes" :key="r.id" @click.prevent="navigateTo(r.id)" href="#"
+         :class="currentRoute===r.id ? 'text-white bg-white/10 border-brand-400' : 'text-brand-200 hover:text-white border-transparent'"
+         class="px-4 py-2.5 text-sm font-medium border-b-2 whitespace-nowrap transition flex items-center gap-2">
+        {{ r.label }}
+        <span v-if="r.badge" class="text-[10px] font-bold px-1.5 py-0.5 rounded-full leading-none" :class="r.badgeClass">{{ r.badge }}</span>
+      </a>
     </nav>
   </header>
 
@@ -127,6 +127,9 @@
   </div>
 
   <main class="max-w-[1600px] mx-auto px-6 py-5 space-y-5">
+
+    <!-- ============================ DASHBOARD ROUTE ============================ -->
+    <div v-if="currentRoute === 'dashboard'" class="space-y-5">
 
     <!-- MINISTERIAL KPI BANNER -->
     <section class="bg-gradient-to-r from-brand-900 via-brand-800 to-brand-700 rounded-2xl shadow-xl text-white p-5 relative overflow-hidden">
@@ -178,7 +181,14 @@
             </h2>
             <p class="text-xs text-slate-500 mt-0.5">Guide Digital Certification & Verification Registry</p>
           </div>
-          <span class="text-xs bg-brand-50 text-brand-800 px-3 py-1.5 rounded-full font-medium border border-brand-200">Всего: {{ guides.length }} · Верифицировано: {{ guides.filter(g => g.verified).length }}</span>
+          <div class="flex items-center gap-2">
+            <div class="relative">
+              <input v-model="guideSearch" type="text" placeholder="Поиск: имя, ID, регион, язык"
+                     class="pl-9 pr-3 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-none focus:border-brand-400 w-56"/>
+              <svg class="w-4 h-4 absolute left-2.5 top-2 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+            </div>
+            <span class="text-xs bg-brand-50 text-brand-800 px-3 py-1.5 rounded-full font-medium border border-brand-200">Всего: {{ guides.length }} · Верифицировано: {{ guides.filter(g => g.verified).length }}</span>
+          </div>
         </div>
         <div class="overflow-x-auto scrollbar-thin">
           <table class="w-full text-sm">
@@ -194,7 +204,7 @@
               </tr>
             </thead>
             <tbody class="divide-y divide-slate-100">
-              <tr v-for="guide in guides" :key="guide.id" class="hover:bg-brand-50/30 transition">
+              <tr v-for="guide in filteredGuides" :key="guide.id" class="hover:bg-brand-50/30 transition">
                 <td class="px-5 py-3">
                   <div class="flex items-center gap-3">
                     <div class="w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold text-sm shadow-sm" :style="{ background: guide.color }">{{ guide.initials }}</div>
@@ -302,13 +312,22 @@
           <p class="text-xs text-slate-500 mt-0.5">Application Queue · норматив рассмотрения: 5 рабочих дней (Постановление КМ № 287)</p>
         </div>
         <div class="flex items-center gap-2 text-[11px]">
-          <span class="px-2.5 py-1 rounded-full bg-amber-50 text-amber-800 border border-amber-200 font-medium">Ожидает: {{ applications.length }}</span>
-          <span class="px-2.5 py-1 rounded-full bg-red-50 text-red-700 border border-red-200 font-medium">Просрочено: {{ applications.filter(a=>a.slaHours<0).length }}</span>
+          <div class="relative">
+            <input v-model="applicationSearch" type="text" placeholder="Поиск заявок"
+                   class="pl-8 pr-3 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-none focus:border-brand-400 w-44"/>
+            <svg class="w-3.5 h-3.5 absolute left-2.5 top-2 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+          </div>
+          <select v-model="applicationReviewer" class="text-xs border border-slate-200 rounded-lg px-2 py-1.5">
+            <option value="all">Все инспекторы</option>
+            <option v-for="r in reviewerList" :key="r" :value="r">{{ r }}</option>
+          </select>
+          <span class="px-2.5 py-1 rounded-full bg-amber-50 text-amber-800 border border-amber-200 font-medium">Ожидает: {{ filteredApplications.length }}</span>
+          <span class="px-2.5 py-1 rounded-full bg-red-50 text-red-700 border border-red-200 font-medium">Просрочено: {{ filteredApplications.filter(a=>a.slaHours<0).length }}</span>
           <span class="px-2.5 py-1 rounded-full bg-brand-50 text-brand-800 border border-brand-200 font-medium">Среднее SLA: 2,8 дн.</span>
         </div>
       </div>
       <div class="p-4 grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-3">
-        <div v-for="app in applications" :key="app.id" class="border border-slate-200 rounded-xl p-4 hover:border-brand-400 transition">
+        <div v-for="app in filteredApplications" :key="app.id" class="border border-slate-200 rounded-xl p-4 hover:border-brand-400 transition">
           <div class="flex items-start justify-between mb-3">
             <div class="flex items-center gap-3">
               <div class="w-11 h-11 rounded-full flex items-center justify-center text-white font-semibold text-sm" :style="{background:app.color}">{{ app.initials }}</div>
@@ -481,7 +500,7 @@
           </h2>
           <p class="text-xs text-slate-500 mt-0.5">Recent Digital Transactions · автоматическое удержание налога 10%</p>
         </div>
-        <button class="text-xs font-semibold text-brand-700 hover:text-brand-900 flex items-center gap-1">
+        <button @click="exportTaxCsv" class="text-xs font-semibold text-brand-700 hover:text-brand-900 flex items-center gap-1">
           Экспорт для Налоговой службы КР
           <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
         </button>
@@ -545,9 +564,10 @@
             <p class="text-xs text-slate-500 mt-0.5">Geospatial intelligence · обновление каждые 30 сек · {{ activeTours }} активных туров на карте</p>
           </div>
           <div class="flex items-center gap-2 text-[11px]">
-            <span class="px-2 py-1 rounded bg-brand-50 border border-brand-200 text-brand-800 font-medium">Слой: туры</span>
-            <span class="px-2 py-1 rounded bg-slate-50 border border-slate-200 text-slate-600">Слой: гиды</span>
-            <span class="px-2 py-1 rounded bg-slate-50 border border-slate-200 text-slate-600">Слой: происшествия</span>
+            <button v-for="l in mapLayers" :key="l" @click="mapLayer = l" class="px-2 py-1 rounded border font-medium transition"
+                    :class="mapLayer === l ? 'bg-brand-50 border-brand-300 text-brand-800' : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'">
+              Слой: {{ l }}
+            </button>
           </div>
         </div>
         <div class="p-4 relative">
@@ -564,33 +584,33 @@
             <!-- Stylized KG oblasts (simplified) -->
             <g>
               <!-- Талас -->
-              <path class="map-region" :fill="regionFill('Талас')" stroke="#047857" stroke-width="1.5" d="M70,110 L180,90 L220,140 L160,180 L90,170 Z" @click="filterByRegion('Талас')"/>
+              <path class="map-region" :fill="regionFill('Талас')" stroke="#047857" stroke-width="1.5" d="M70,110 L180,90 L220,140 L160,180 L90,170 Z" @click="drilldownRegion('Талас')"/>
               <text x="135" y="140" class="fill-white text-[11px] font-semibold pointer-events-none" text-anchor="middle">Талас</text>
 
               <!-- Чуй (Бишкек) -->
-              <path class="map-region" :fill="regionFill('Чуй')" stroke="#047857" stroke-width="1.5" d="M180,90 L340,75 L380,130 L320,170 L220,140 Z" @click="filterByRegion('Чуй')"/>
+              <path class="map-region" :fill="regionFill('Чуй')" stroke="#047857" stroke-width="1.5" d="M180,90 L340,75 L380,130 L320,170 L220,140 Z" @click="drilldownRegion('Чуй')"/>
               <text x="280" y="115" class="fill-white text-[11px] font-semibold pointer-events-none" text-anchor="middle">Чуй · Бишкек</text>
 
               <!-- Иссык-Куль -->
-              <path class="map-region" :fill="regionFill('Иссык-Куль')" stroke="#047857" stroke-width="1.5" d="M380,130 L590,100 L680,160 L620,220 L450,210 L340,180 Z" @click="filterByRegion('Иссык-Куль')"/>
+              <path class="map-region" :fill="regionFill('Иссык-Куль')" stroke="#047857" stroke-width="1.5" d="M380,130 L590,100 L680,160 L620,220 L450,210 L340,180 Z" @click="drilldownRegion('Иссык-Куль')"/>
               <ellipse cx="510" cy="165" rx="80" ry="22" fill="#7dd3fc" opacity="0.85"/>
               <text x="510" y="170" class="fill-blue-900 text-[10px] font-bold pointer-events-none" text-anchor="middle">оз. Иссык-Куль</text>
               <text x="540" y="135" class="fill-white text-[11px] font-semibold pointer-events-none" text-anchor="middle">Иссык-Кульская обл.</text>
 
               <!-- Нарын -->
-              <path class="map-region" :fill="regionFill('Нарын')" stroke="#047857" stroke-width="1.5" d="M220,200 L340,180 L450,210 L460,290 L320,310 L200,280 Z" @click="filterByRegion('Нарын')"/>
+              <path class="map-region" :fill="regionFill('Нарын')" stroke="#047857" stroke-width="1.5" d="M220,200 L340,180 L450,210 L460,290 L320,310 L200,280 Z" @click="drilldownRegion('Нарын')"/>
               <text x="330" y="250" class="fill-white text-[11px] font-semibold pointer-events-none" text-anchor="middle">Нарын</text>
 
               <!-- Джалал-Абад -->
-              <path class="map-region" :fill="regionFill('Джалал-Абад')" stroke="#047857" stroke-width="1.5" d="M90,180 L200,200 L200,280 L120,320 L60,250 Z" @click="filterByRegion('Джалал-Абад')"/>
+              <path class="map-region" :fill="regionFill('Джалал-Абад')" stroke="#047857" stroke-width="1.5" d="M90,180 L200,200 L200,280 L120,320 L60,250 Z" @click="drilldownRegion('Джалал-Абад')"/>
               <text x="135" y="245" class="fill-white text-[11px] font-semibold pointer-events-none" text-anchor="middle">Джалал-Абад</text>
 
               <!-- Ош -->
-              <path class="map-region" :fill="regionFill('Ош')" stroke="#047857" stroke-width="1.5" d="M120,320 L320,310 L380,360 L200,380 L80,355 Z" @click="filterByRegion('Ош')"/>
+              <path class="map-region" :fill="regionFill('Ош')" stroke="#047857" stroke-width="1.5" d="M120,320 L320,310 L380,360 L200,380 L80,355 Z" @click="drilldownRegion('Ош')"/>
               <text x="220" y="345" class="fill-white text-[11px] font-semibold pointer-events-none" text-anchor="middle">Ош</text>
 
               <!-- Баткен -->
-              <path class="map-region" :fill="regionFill('Баткен')" stroke="#047857" stroke-width="1.5" d="M40,360 L80,355 L200,380 L150,400 L30,400 Z" @click="filterByRegion('Баткен')"/>
+              <path class="map-region" :fill="regionFill('Баткен')" stroke="#047857" stroke-width="1.5" d="M40,360 L80,355 L200,380 L150,400 L30,400 Z" @click="drilldownRegion('Баткен')"/>
               <text x="110" y="385" class="fill-white text-[10px] font-semibold pointer-events-none" text-anchor="middle">Баткен</text>
 
               <!-- Live tour pins -->
@@ -868,6 +888,694 @@
         </table>
       </div>
     </section>
+    </div><!-- /dashboard route -->
+
+    <!-- ============================ ANALYTICS ROUTE ============================ -->
+    <div v-if="currentRoute === 'analytics'" class="space-y-5">
+      <section class="bg-gradient-to-r from-brand-900 via-brand-800 to-brand-700 rounded-2xl shadow-xl text-white p-5 relative overflow-hidden">
+        <div class="absolute inset-0 opacity-10" style="background-image:radial-gradient(circle at 80% 30%,white 1px,transparent 1px); background-size:24px 24px"></div>
+        <div class="relative flex items-center justify-between flex-wrap gap-3">
+          <div>
+            <h2 class="text-lg font-bold">Аналитика регионов · глубокий срез</h2>
+            <p class="text-[11px] text-brand-200 mt-0.5">Region Analytics · сравнение с прошлым годом, часовые загрузки, топ-объекты, продуктивность гидов</p>
+          </div>
+          <div class="flex items-center gap-2 flex-wrap">
+            <select v-model="analyticsRegion" class="text-xs bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-white">
+              <option value="all" class="text-slate-800">Все регионы</option>
+              <option v-for="r in regionOptions" :key="r" :value="r" class="text-slate-800">{{ r }}</option>
+            </select>
+            <select v-model="analyticsRange" class="text-xs bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-white">
+              <option value="7d" class="text-slate-800">Последние 7 дней</option>
+              <option value="30d" class="text-slate-800">30 дней</option>
+              <option value="90d" class="text-slate-800">Квартал</option>
+              <option value="ytd" class="text-slate-800">С начала года</option>
+            </select>
+            <button @click="exportAnalyticsCsv" class="text-xs font-semibold bg-white text-brand-900 hover:bg-brand-50 px-3 py-2 rounded-lg">Экспорт CSV</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div v-for="k in analyticsKpis" :key="k.label" class="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm">
+          <div class="text-[10px] uppercase text-slate-500 font-semibold">{{ k.label }}</div>
+          <div class="text-2xl font-bold text-brand-900 mt-1">{{ k.value }}</div>
+          <div class="text-[11px] mt-1" :class="k.delta.startsWith('+') || k.delta.startsWith('↑') ? 'text-brand-700' : 'text-red-600'">{{ k.delta }} · {{ k.hint }}</div>
+        </div>
+      </section>
+
+      <section class="grid grid-cols-1 xl:grid-cols-3 gap-5">
+        <div class="xl:col-span-2 bg-white rounded-2xl shadow-sm border border-slate-200">
+          <div class="p-5 border-b border-slate-100 flex items-center justify-between">
+            <div>
+              <h2 class="text-base font-bold text-brand-900">Тепловая карта загруженности · по часам и дням</h2>
+              <p class="text-xs text-slate-500 mt-0.5">Hourly load heatmap · {{ analyticsRegion === 'all' ? 'все регионы' : analyticsRegion }} · тёмный = пиковая нагрузка</p>
+            </div>
+            <div class="text-[11px] text-slate-500">Пик: {{ heatmapPeak.day }} {{ heatmapPeak.hour }}:00 · {{ heatmapPeak.val }}</div>
+          </div>
+          <div class="p-5 overflow-x-auto">
+            <div class="min-w-[720px]">
+              <div class="grid gap-1" style="grid-template-columns: 48px repeat(24, minmax(0,1fr));">
+                <div></div>
+                <div v-for="h in 24" :key="'h'+h" class="text-[9px] text-center text-slate-400">{{ (h-1).toString().padStart(2,'0') }}</div>
+                <template v-for="(row, i) in heatmap" :key="i">
+                  <div class="text-[10px] text-slate-500 font-semibold self-center">{{ row.day }}</div>
+                  <div v-for="(c, j) in row.cells" :key="j" @click="heatmapCellInfo(row.day, j, c)"
+                       :title="row.day + ' ' + j + ':00 · ' + c + ' туров'"
+                       class="aspect-square rounded cursor-pointer hover:ring-2 hover:ring-brand-500 transition"
+                       :style="{background: heatmapColor(c)}"></div>
+                </template>
+              </div>
+              <div class="mt-3 flex items-center gap-2 text-[11px] text-slate-500">
+                <span>Меньше</span>
+                <span v-for="v in [4,12,24,40,60]" :key="v" class="w-4 h-4 rounded" :style="{background: heatmapColor(v)}"></span>
+                <span>Больше</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-200">
+          <div class="p-5 border-b border-slate-100">
+            <h2 class="text-base font-bold text-brand-900">Сравнение регионов · год к году</h2>
+            <p class="text-xs text-slate-500 mt-0.5">Region YoY comparison · доход и туристы</p>
+          </div>
+          <div class="p-4 space-y-3 max-h-[420px] overflow-y-auto scrollbar-thin">
+            <div v-for="r in regionAnalytics" :key="r.name" @click="analyticsRegion = r.name"
+                 class="p-3 rounded-xl border border-slate-100 hover:border-brand-300 cursor-pointer transition"
+                 :class="analyticsRegion === r.name ? 'bg-brand-50 border-brand-400' : ''">
+              <div class="flex items-center justify-between">
+                <span class="font-semibold text-sm text-slate-800">{{ r.name }}</span>
+                <span class="text-[11px] font-bold" :class="r.deltaPct >= 0 ? 'text-brand-700' : 'text-red-600'">{{ r.deltaPct >= 0 ? '+' : '' }}{{ r.deltaPct }}%</span>
+              </div>
+              <div class="flex items-end gap-1 mt-2 h-10">
+                <div class="flex-1 flex flex-col items-center">
+                  <div class="w-full bg-slate-300 rounded-t" :style="{height: (r.rev2025 / r.rev2026 * 32) + 'px'}"></div>
+                  <div class="text-[9px] text-slate-500 mt-0.5">2025</div>
+                </div>
+                <div class="flex-1 flex flex-col items-center">
+                  <div class="w-full bg-brand-600 rounded-t" style="height:32px"></div>
+                  <div class="text-[9px] text-brand-700 font-semibold mt-0.5">2026</div>
+                </div>
+              </div>
+              <div class="mt-2 text-[10px] text-slate-500">{{ formatSom(r.rev2026) }} млн · {{ r.tourists.toLocaleString('ru-RU') }} тур.</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="grid grid-cols-1 xl:grid-cols-2 gap-5">
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-200">
+          <div class="p-5 border-b border-slate-100 flex items-center justify-between">
+            <div>
+              <h2 class="text-base font-bold text-brand-900">Топ туристических объектов</h2>
+              <p class="text-xs text-slate-500 mt-0.5">Top attractions · посещаемость и средний чек</p>
+            </div>
+            <span class="text-xs text-slate-500">{{ analyticsRange === '7d' ? '7 дней' : analyticsRange === '30d' ? '30 дней' : analyticsRange === '90d' ? '90 дней' : 'YTD' }}</span>
+          </div>
+          <table class="w-full text-sm">
+            <thead class="bg-slate-50 text-[11px] uppercase text-slate-500">
+              <tr>
+                <th class="text-left px-5 py-3">Объект</th>
+                <th class="text-left px-3 py-3">Регион</th>
+                <th class="text-right px-3 py-3">Визитов</th>
+                <th class="text-right px-5 py-3">Ср. чек</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+              <tr v-for="a in topAttractions" :key="a.name" class="hover:bg-brand-50/30">
+                <td class="px-5 py-3">
+                  <div class="flex items-center gap-2">
+                    <span class="text-lg">{{ a.icon }}</span>
+                    <div>
+                      <div class="font-semibold text-slate-800">{{ a.name }}</div>
+                      <div class="text-[10px] text-slate-400">Рейтинг {{ a.rating }} · {{ a.reviews }} отзывов</div>
+                    </div>
+                  </div>
+                </td>
+                <td class="px-3 py-3 text-slate-600">{{ a.region }}</td>
+                <td class="px-3 py-3 text-right font-semibold text-slate-800">{{ a.visits.toLocaleString('ru-RU') }}</td>
+                <td class="px-5 py-3 text-right text-brand-700 font-semibold">{{ formatSom(a.avg) }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-200">
+          <div class="p-5 border-b border-slate-100">
+            <h2 class="text-base font-bold text-brand-900">Продуктивность гидов · Top-15</h2>
+            <p class="text-xs text-slate-500 mt-0.5">Guide productivity · туры · выручка · рейтинг</p>
+          </div>
+          <div class="p-3 space-y-2 max-h-[420px] overflow-y-auto scrollbar-thin">
+            <div v-for="(g, i) in guideProductivity" :key="g.id" class="flex items-center gap-3 p-2.5 rounded-xl border border-slate-100">
+              <div class="w-6 text-center font-bold text-slate-400 text-sm">{{ i + 1 }}</div>
+              <div class="w-9 h-9 rounded-full flex items-center justify-center text-white font-semibold text-xs" :style="{background: g.color}">{{ g.initials }}</div>
+              <div class="flex-1 min-w-0">
+                <div class="font-semibold text-sm text-slate-800 truncate">{{ g.name }}</div>
+                <div class="text-[11px] text-slate-500">{{ g.region }} · {{ g.tours }} туров · ★ {{ g.rating }}</div>
+              </div>
+              <div class="text-right flex-shrink-0">
+                <div class="font-semibold text-sm text-brand-700">{{ formatSom(g.revenue) }}</div>
+                <div class="text-[10px] text-slate-400">сом · выручка</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="bg-white rounded-2xl shadow-sm border border-slate-200">
+        <div class="p-5 border-b border-slate-100">
+          <h2 class="text-base font-bold text-brand-900">Прогноз спроса · следующие 4 недели</h2>
+          <p class="text-xs text-slate-500 mt-0.5">Demand forecast · модель ARIMA-SARIMA + сезонность + курс валют + погода</p>
+        </div>
+        <div class="p-5">
+          <div class="relative h-56">
+            <svg viewBox="0 0 700 200" class="w-full h-full" preserveAspectRatio="none">
+              <line v-for="i in 4" :y1="i*40" :y2="i*40" x1="40" x2="700" stroke="#e2e8f0" stroke-width="0.5"/>
+              <text v-for="(v,i) in ['высокий','сред+','средний','сред-','низкий']" :x="35" :y="i*40+6" text-anchor="end" class="fill-slate-400 text-[9px]">{{ v }}</text>
+              <polygon :points="forecastArea" fill="#059669" fill-opacity="0.12"/>
+              <polyline :points="forecastLine" fill="none" stroke="#059669" stroke-width="2.5" stroke-linejoin="round"/>
+              <polyline :points="forecastUpper" fill="none" stroke="#94a3b8" stroke-width="1" stroke-dasharray="3,3"/>
+              <polyline :points="forecastLower" fill="none" stroke="#94a3b8" stroke-width="1" stroke-dasharray="3,3"/>
+              <g v-for="(p, i) in forecastPoints" :key="i">
+                <circle :cx="p.x" :cy="p.y" r="3.5" fill="#059669" stroke="white" stroke-width="1.5"/>
+                <text :x="p.x" y="195" text-anchor="middle" class="fill-slate-500 text-[9px]">{{ p.label }}</text>
+              </g>
+            </svg>
+          </div>
+          <div class="mt-4 grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div class="bg-brand-50 rounded-xl p-3 border border-brand-200 text-xs">
+              <div class="font-semibold text-brand-800">Пик спроса</div>
+              <div class="text-slate-600 mt-1">Прогноз пика 24-26 июня (Иссык-Куль). Загрузка достигнет 94%.</div>
+              <button @click="createDispatchTask('Пиковая нагрузка на Иссык-Куле, добавить транспорт и гидов')" class="mt-2 text-brand-700 font-semibold hover:underline">Создать диспетч-задачу →</button>
+            </div>
+            <div class="bg-amber-50 rounded-xl p-3 border border-amber-200 text-xs">
+              <div class="font-semibold text-amber-800">Погодный риск</div>
+              <div class="text-slate-600 mt-1">28-30 июня: грозы на Ала-Арче. Ожидается 3-4 переноса туров.</div>
+              <button @click="createDispatchTask('Подготовить альтернативные маршруты для Ала-Арчи 28-30 июня')" class="mt-2 text-amber-700 font-semibold hover:underline">Подготовить план Б →</button>
+            </div>
+            <div class="bg-slate-50 rounded-xl p-3 border border-slate-200 text-xs">
+              <div class="font-semibold text-slate-800">Дефицит гидов</div>
+              <div class="text-slate-600 mt-1">Прогноз: не хватит 8 корее-язычных гидов на неделю 24-30 июня.</div>
+              <button @click="navigateTo('operators')" class="mt-2 text-slate-700 font-semibold hover:underline">Открыть реестр →</button>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- ============================ OPERATORS ROUTE ============================ -->
+    <div v-if="currentRoute === 'operators'" class="space-y-5">
+      <section class="bg-gradient-to-r from-brand-900 via-brand-800 to-brand-700 rounded-2xl shadow-xl text-white p-5 relative overflow-hidden">
+        <div class="absolute inset-0 opacity-10" style="background-image:radial-gradient(circle at 20% 60%,white 1px,transparent 1px); background-size:24px 24px"></div>
+        <div class="relative flex items-center justify-between flex-wrap gap-3">
+          <div>
+            <h2 class="text-lg font-bold">Реестр туроператоров и поставщиков</h2>
+            <p class="text-[11px] text-brand-200 mt-0.5">Operators Registry · ОсОО, ИП, юрт-кемпинги, транспорт · интеграция с ГНС и ЮрФайл</p>
+          </div>
+          <div class="flex items-center gap-2 flex-wrap">
+            <button @click="openOperatorForm(null)" class="text-xs font-semibold bg-white text-brand-900 hover:bg-brand-50 px-3 py-2 rounded-lg flex items-center gap-1">
+              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+              Добавить оператора
+            </button>
+            <button @click="exportOperatorsCsv" class="text-xs font-semibold bg-white/10 border border-white/20 hover:bg-white/20 text-white px-3 py-2 rounded-lg">Экспорт CSV</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="grid grid-cols-2 md:grid-cols-5 gap-3">
+        <div v-for="k in operatorKpis" :key="k.label" class="bg-white rounded-xl p-3 border border-slate-200 shadow-sm">
+          <div class="text-[10px] uppercase text-slate-500 font-semibold">{{ k.label }}</div>
+          <div class="text-xl font-bold text-brand-900 mt-1">{{ k.value }}</div>
+          <div class="text-[10px] mt-0.5" :class="k.tone">{{ k.hint }}</div>
+        </div>
+      </section>
+
+      <section class="bg-white rounded-2xl shadow-sm border border-slate-200">
+        <div class="p-4 border-b border-slate-100 flex items-center gap-3 flex-wrap">
+          <div class="relative flex-1 min-w-[240px]">
+            <input v-model="operatorSearch" type="text" placeholder="Поиск: название, ИНН, ID лицензии, регион..."
+                   class="w-full pl-9 pr-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-brand-400"/>
+            <svg class="w-4 h-4 absolute left-3 top-2.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+          </div>
+          <select v-model="operatorTypeFilter" class="text-sm border border-slate-200 rounded-lg px-3 py-2">
+            <option value="all">Все типы</option>
+            <option value="ОсОО">ОсОО</option>
+            <option value="ИП">ИП</option>
+            <option value="Юрт-кемпинг">Юрт-кемпинги</option>
+            <option value="Транспорт">Транспорт</option>
+            <option value="Отель">Отели</option>
+          </select>
+          <select v-model="operatorRegionFilter" class="text-sm border border-slate-200 rounded-lg px-3 py-2">
+            <option value="all">Все регионы</option>
+            <option v-for="r in regionOptions" :key="r" :value="r">{{ r }}</option>
+          </select>
+          <select v-model="operatorStatusFilter" class="text-sm border border-slate-200 rounded-lg px-3 py-2">
+            <option value="all">Все статусы</option>
+            <option value="active">Действует</option>
+            <option value="warning">Предупреждение</option>
+            <option value="suspended">Приостановлен</option>
+            <option value="expired">Просрочен</option>
+          </select>
+          <div class="text-xs text-slate-500">Найдено: <strong>{{ filteredOperators.length }}</strong> · Всего: {{ operators.length }}</div>
+        </div>
+        <div class="overflow-x-auto scrollbar-thin">
+          <table class="w-full text-sm">
+            <thead class="bg-slate-50 text-[11px] uppercase text-slate-500">
+              <tr>
+                <th class="text-left px-5 py-3 cursor-pointer" @click="sortOperators('name')">Оператор ↕</th>
+                <th class="text-left px-3 py-3">Тип</th>
+                <th class="text-left px-3 py-3">ИНН · Лицензия</th>
+                <th class="text-left px-3 py-3">Регион</th>
+                <th class="text-right px-3 py-3 cursor-pointer" @click="sortOperators('revenue')">Оборот ↕</th>
+                <th class="text-right px-3 py-3 cursor-pointer" @click="sortOperators('tax')">Налог ↕</th>
+                <th class="text-center px-3 py-3">Compliance</th>
+                <th class="text-center px-3 py-3">Статус</th>
+                <th class="text-right px-5 py-3">Действия</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+              <tr v-for="op in filteredOperators" :key="op.id" class="hover:bg-brand-50/30">
+                <td class="px-5 py-3">
+                  <div class="font-semibold text-slate-800">{{ op.name }}</div>
+                  <div class="text-[11px] text-slate-500">{{ op.director }} · тел. {{ op.phone }}</div>
+                </td>
+                <td class="px-3 py-3"><span class="text-[11px] px-2 py-0.5 rounded bg-slate-100 text-slate-700">{{ op.type }}</span></td>
+                <td class="px-3 py-3 font-mono text-[11px] text-slate-600">{{ op.inn }}<br><span class="text-slate-400">{{ op.license }}</span></td>
+                <td class="px-3 py-3 text-slate-600">{{ op.region }}</td>
+                <td class="px-3 py-3 text-right font-semibold text-slate-800">{{ formatSom(op.revenue) }}</td>
+                <td class="px-3 py-3 text-right text-brand-700 font-semibold">{{ formatSom(op.tax) }}</td>
+                <td class="px-3 py-3">
+                  <div class="flex items-center gap-1.5">
+                    <div class="w-14 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                      <div class="h-full rounded-full" :class="op.compliance >= 80 ? 'bg-brand-500' : op.compliance >= 60 ? 'bg-amber-500' : 'bg-red-500'" :style="{width: op.compliance + '%'}"></div>
+                    </div>
+                    <span class="text-[11px] font-semibold" :class="op.compliance >= 80 ? 'text-brand-700' : op.compliance >= 60 ? 'text-amber-700' : 'text-red-700'">{{ op.compliance }}</span>
+                  </div>
+                </td>
+                <td class="px-3 py-3 text-center">
+                  <span :class="statusPillClass(op.status)" class="text-[11px] font-medium px-2 py-0.5 rounded-full border">{{ statusLabel(op.status) }}</span>
+                </td>
+                <td class="px-5 py-3 text-right">
+                  <div class="flex items-center gap-1 justify-end">
+                    <button @click="openOperatorDetail(op)" class="text-[11px] font-semibold text-brand-700 hover:text-brand-900 px-2 py-1 rounded hover:bg-brand-50">Детали</button>
+                    <button @click="openOperatorForm(op)" class="text-[11px] font-semibold text-slate-600 hover:text-slate-900 px-2 py-1 rounded hover:bg-slate-100">Ред.</button>
+                    <button @click="toggleOperatorSuspension(op)" class="text-[11px] font-semibold px-2 py-1 rounded" :class="op.status === 'suspended' ? 'text-brand-700 hover:bg-brand-50' : 'text-red-600 hover:bg-red-50'">{{ op.status === 'suspended' ? 'Восст.' : 'Приост.' }}</button>
+                  </div>
+                </td>
+              </tr>
+              <tr v-if="filteredOperators.length === 0">
+                <td colspan="9" class="px-5 py-10 text-center text-sm text-slate-400">Нет операторов по данным фильтрам</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+
+    <!-- ============================ REPORTS ROUTE ============================ -->
+    <div v-if="currentRoute === 'reports'" class="space-y-5">
+      <section class="bg-gradient-to-r from-brand-900 via-brand-800 to-brand-700 rounded-2xl shadow-xl text-white p-5 relative overflow-hidden">
+        <div class="absolute inset-0 opacity-10" style="background-image:radial-gradient(circle at 60% 40%,white 1px,transparent 1px); background-size:24px 24px"></div>
+        <div class="relative">
+          <h2 class="text-lg font-bold">Отчёты для МИД, ГНС и UNWTO</h2>
+          <p class="text-[11px] text-brand-200 mt-0.5">Report Builder · шаблоны с электронной подписью · выгрузка CSV/JSON · история отправок</p>
+        </div>
+      </section>
+
+      <section class="grid grid-cols-1 xl:grid-cols-3 gap-5">
+        <div class="xl:col-span-2 bg-white rounded-2xl shadow-sm border border-slate-200">
+          <div class="p-5 border-b border-slate-100">
+            <h2 class="text-base font-bold text-brand-900">Конструктор отчёта</h2>
+            <p class="text-xs text-slate-500 mt-0.5">Выберите шаблон, период и получателя. Автоматический подсчёт с интегрированной шины.</p>
+          </div>
+          <div class="p-5 space-y-4">
+            <div>
+              <div class="text-xs font-semibold text-slate-500 uppercase mb-2">Шаблон</div>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
+                <label v-for="t in reportTemplates" :key="t.id" class="p-3 rounded-xl border cursor-pointer transition"
+                       :class="reportForm.template === t.id ? 'border-brand-500 bg-brand-50' : 'border-slate-200 hover:border-brand-300'">
+                  <input type="radio" v-model="reportForm.template" :value="t.id" class="sr-only"/>
+                  <div class="flex items-start gap-3">
+                    <div class="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0" :class="reportForm.template === t.id ? 'bg-brand-600 text-white' : 'bg-slate-100 text-slate-600'">
+                      <span class="text-lg">{{ t.icon }}</span>
+                    </div>
+                    <div class="flex-1">
+                      <div class="font-semibold text-sm text-slate-800">{{ t.name }}</div>
+                      <div class="text-[11px] text-slate-500 mt-0.5">{{ t.desc }}</div>
+                      <div class="text-[10px] text-brand-700 mt-1">Получатель: {{ t.recipient }}</div>
+                    </div>
+                  </div>
+                </label>
+              </div>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div>
+                <div class="text-xs font-semibold text-slate-500 uppercase mb-1">Начало</div>
+                <input v-model="reportForm.from" type="date" class="w-full text-sm border border-slate-200 rounded-lg px-3 py-2"/>
+              </div>
+              <div>
+                <div class="text-xs font-semibold text-slate-500 uppercase mb-1">Конец</div>
+                <input v-model="reportForm.to" type="date" class="w-full text-sm border border-slate-200 rounded-lg px-3 py-2"/>
+              </div>
+              <div>
+                <div class="text-xs font-semibold text-slate-500 uppercase mb-1">Формат</div>
+                <select v-model="reportForm.format" class="w-full text-sm border border-slate-200 rounded-lg px-3 py-2">
+                  <option value="csv">CSV (Excel)</option>
+                  <option value="json">JSON (API)</option>
+                  <option value="pdf">PDF (визуальный)</option>
+                </select>
+              </div>
+            </div>
+            <div>
+              <div class="text-xs font-semibold text-slate-500 uppercase mb-1">Комментарий (появится в теле письма)</div>
+              <textarea v-model="reportForm.note" rows="2" class="w-full text-sm border border-slate-200 rounded-lg px-3 py-2" placeholder="Например: Оперативная сверка перед плановой ревизией..."></textarea>
+            </div>
+            <div class="bg-slate-50 rounded-xl p-4 border border-slate-200 space-y-2 text-sm">
+              <div class="font-semibold text-slate-800 text-xs uppercase">Предпросмотр отчёта</div>
+              <div v-for="row in reportPreview" :key="row.label" class="flex justify-between">
+                <span class="text-slate-600">{{ row.label }}</span>
+                <span class="font-semibold text-slate-900">{{ row.value }}</span>
+              </div>
+            </div>
+            <div class="flex items-center justify-between pt-2">
+              <div class="text-[11px] text-slate-500">Подпись: ЭЦП замминистра Мамасалиев А. · Автоматическая</div>
+              <div class="flex items-center gap-2">
+                <button @click="previewReport" class="text-sm font-semibold text-brand-700 hover:text-brand-900 px-3 py-2">Предпросмотр</button>
+                <button @click="generateReport" class="text-sm font-semibold bg-brand-700 hover:bg-brand-800 text-white px-4 py-2 rounded-lg shadow-sm">Сформировать и отправить →</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-200">
+          <div class="p-5 border-b border-slate-100">
+            <h2 class="text-base font-bold text-brand-900">История отчётов</h2>
+            <p class="text-xs text-slate-500 mt-0.5">{{ reportsHistory.length }} записей · подписаны ЭЦП</p>
+          </div>
+          <div class="p-3 max-h-[560px] overflow-y-auto scrollbar-thin space-y-2">
+            <div v-for="r in reportsHistory" :key="r.id" class="p-3 rounded-xl border border-slate-100 hover:border-brand-300 transition">
+              <div class="flex items-start justify-between">
+                <div class="flex-1 min-w-0">
+                  <div class="font-semibold text-sm text-slate-800 truncate">{{ r.title }}</div>
+                  <div class="text-[11px] text-slate-500 mt-0.5">{{ r.recipient }} · {{ r.period }}</div>
+                  <div class="text-[10px] font-mono text-slate-400 mt-1">#{{ r.id }} · подписан {{ r.signed }}</div>
+                </div>
+                <span class="text-[10px] px-2 py-0.5 rounded font-semibold"
+                      :class="r.status === 'delivered' ? 'bg-brand-100 text-brand-800' : r.status === 'sent' ? 'bg-blue-100 text-blue-800' : 'bg-amber-100 text-amber-800'">
+                  {{ r.status === 'delivered' ? 'Доставлен' : r.status === 'sent' ? 'Отправлен' : 'Черновик' }}
+                </span>
+              </div>
+              <div class="mt-2 flex items-center gap-2 text-[11px]">
+                <button @click="downloadReport(r)" class="text-brand-700 hover:text-brand-900 font-semibold">Скачать</button>
+                <button @click="resendReport(r)" class="text-slate-600 hover:text-slate-900">Повтор отправки</button>
+                <button @click="removeReport(r)" class="text-red-500 hover:text-red-700 ml-auto">Удалить</button>
+              </div>
+            </div>
+            <div v-if="reportsHistory.length === 0" class="text-center text-sm text-slate-400 py-10">Пока нет сформированных отчётов</div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- ============================ CRISIS ROUTE ============================ -->
+    <div v-if="currentRoute === 'crisis'" class="space-y-5">
+      <section class="bg-gradient-to-r from-red-800 via-red-700 to-amber-700 rounded-2xl shadow-xl text-white p-5 relative overflow-hidden">
+        <div class="absolute inset-0 opacity-10" style="background-image:radial-gradient(circle at 40% 20%,white 1px,transparent 1px); background-size:24px 24px"></div>
+        <div class="relative flex items-center justify-between flex-wrap gap-3">
+          <div>
+            <div class="flex items-center gap-2">
+              <span class="w-2.5 h-2.5 bg-red-300 rounded-full pulse-dot"></span>
+              <h2 class="text-lg font-bold">Управление кризисами и происшествиями</h2>
+            </div>
+            <p class="text-[11px] text-white/80 mt-0.5">Crisis Command Center · МЧС · ГидроМет · Погран.служба · СММП · МВД</p>
+          </div>
+          <div class="flex items-center gap-2 flex-wrap">
+            <div class="text-xs bg-white/15 border border-white/30 px-3 py-2 rounded-lg">Активных SOS: <strong>{{ activeIncidents.length }}</strong></div>
+            <button @click="openIncidentForm(null)" class="text-xs font-semibold bg-white text-red-800 hover:bg-red-50 px-3 py-2 rounded-lg flex items-center gap-1">
+              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+              Новое ЧС
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <section class="grid grid-cols-1 xl:grid-cols-3 gap-5">
+        <div class="xl:col-span-2 space-y-5">
+          <div class="bg-white rounded-2xl shadow-sm border border-slate-200">
+            <div class="p-5 border-b border-slate-100 flex items-center justify-between flex-wrap gap-2">
+              <div>
+                <h2 class="text-base font-bold text-brand-900">Активные и последние происшествия</h2>
+                <p class="text-xs text-slate-500 mt-0.5">Incidents · сортировка по приоритету · клик открывает детали</p>
+              </div>
+              <div class="flex items-center gap-1 text-[11px]">
+                <button v-for="f in incidentFilters" :key="f.value" @click="incidentFilter = f.value"
+                        :class="incidentFilter === f.value ? 'bg-red-700 text-white' : 'bg-white text-slate-600 hover:bg-slate-100'"
+                        class="px-2 py-1 rounded-lg border border-slate-200 font-medium">
+                  {{ f.label }}
+                </button>
+              </div>
+            </div>
+            <div class="p-3 space-y-2 max-h-[520px] overflow-y-auto scrollbar-thin">
+              <div v-for="inc in filteredIncidents" :key="inc.id" @click="selectIncident(inc)"
+                   class="p-3 rounded-xl border cursor-pointer transition"
+                   :class="selectedIncident?.id === inc.id ? 'border-red-500 bg-red-50' : (inc.status === 'active' ? 'emergency-flash border-red-300' : 'border-slate-100 hover:border-red-300')">
+                <div class="flex items-start justify-between gap-2">
+                  <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-2 flex-wrap">
+                      <span class="text-lg">{{ inc.icon }}</span>
+                      <span class="font-semibold text-sm text-slate-800">{{ inc.title }}</span>
+                      <span :class="severityClass(inc.severity)" class="text-[10px] font-bold px-1.5 py-0.5 rounded uppercase">{{ inc.severity }}</span>
+                    </div>
+                    <div class="text-xs text-slate-500 mt-1">{{ inc.region }} · GPS {{ inc.gps }}</div>
+                    <div class="text-[11px] text-slate-400 mt-0.5">#{{ inc.id }} · {{ inc.tourist }} ({{ inc.nationality }}) · {{ inc.tsFmt }}</div>
+                  </div>
+                  <span :class="incStatusPill(inc.status)" class="text-[11px] font-semibold px-2 py-0.5 rounded-full whitespace-nowrap">{{ incStatusLabel(inc.status) }}</span>
+                </div>
+              </div>
+              <div v-if="filteredIncidents.length === 0" class="text-center text-sm text-slate-400 py-10">Нет происшествий</div>
+            </div>
+          </div>
+
+          <div class="bg-white rounded-2xl shadow-sm border border-slate-200">
+            <div class="p-5 border-b border-slate-100">
+              <h2 class="text-base font-bold text-brand-900">Ресурсы быстрого реагирования</h2>
+              <p class="text-xs text-slate-500 mt-0.5">Ready-to-dispatch resources · доступность по регионам</p>
+            </div>
+            <div class="p-4 grid grid-cols-2 md:grid-cols-4 gap-3">
+              <div v-for="res in emergencyResources" :key="res.type" class="p-3 rounded-xl border border-slate-100 text-center">
+                <div class="text-2xl">{{ res.icon }}</div>
+                <div class="font-semibold text-sm mt-1">{{ res.type }}</div>
+                <div class="text-[11px] text-slate-500">{{ res.available }}/{{ res.total }} доступно</div>
+                <div class="mt-1 h-1 bg-slate-100 rounded-full overflow-hidden">
+                  <div class="h-full bg-brand-500 rounded-full" :style="{width: (res.available / res.total * 100) + '%'}"></div>
+                </div>
+                <button @click="dispatchResource(res)" class="mt-2 text-[10px] font-semibold text-brand-700 hover:text-brand-900">Направить →</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 flex flex-col">
+          <div class="p-5 border-b border-slate-100">
+            <h2 class="text-base font-bold text-brand-900">Оперативный протокол</h2>
+            <p class="text-xs text-slate-500 mt-0.5" v-if="selectedIncident">Инцидент #{{ selectedIncident.id }} · {{ selectedIncident.title }}</p>
+            <p class="text-xs text-slate-500 mt-0.5" v-else>Выберите происшествие слева</p>
+          </div>
+          <div v-if="selectedIncident" class="p-5 space-y-4 flex-1 overflow-y-auto scrollbar-thin">
+            <div class="bg-red-50 border border-red-200 rounded-xl p-3 text-xs space-y-1">
+              <div class="flex justify-between"><span class="text-slate-600">Гид</span><span class="font-semibold">{{ selectedIncident.guide }}</span></div>
+              <div class="flex justify-between"><span class="text-slate-600">Телефон гида</span><span class="font-mono">{{ selectedIncident.guidePhone }}</span></div>
+              <div class="flex justify-between"><span class="text-slate-600">Турист</span><span class="font-semibold">{{ selectedIncident.tourist }} · {{ selectedIncident.nationality }}</span></div>
+              <div class="flex justify-between"><span class="text-slate-600">Дипломат.</span><span>{{ selectedIncident.embassy }}</span></div>
+              <div class="flex justify-between"><span class="text-slate-600">GPS</span><span class="font-mono">{{ selectedIncident.gps }}</span></div>
+              <div class="flex justify-between"><span class="text-slate-600">Высота · погода</span><span>{{ selectedIncident.altitude }} м · {{ selectedIncident.weather }}</span></div>
+            </div>
+            <div>
+              <div class="text-xs font-semibold text-slate-500 uppercase mb-2">Timeline</div>
+              <div class="space-y-2">
+                <div v-for="(step, i) in selectedIncident.timeline" :key="i" class="flex items-start gap-2 text-xs">
+                  <div class="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 text-white"
+                       :class="step.done ? 'bg-brand-600' : 'bg-slate-300'">
+                    <svg v-if="step.done" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                    <span v-else class="text-[10px] font-bold">{{ i + 1 }}</span>
+                  </div>
+                  <div class="flex-1">
+                    <div class="font-semibold" :class="step.done ? 'text-slate-800' : 'text-slate-500'">{{ step.title }}</div>
+                    <div class="text-[10px] text-slate-500">{{ step.desc }}<span v-if="step.time"> · {{ step.time }}</span></div>
+                  </div>
+                  <button v-if="!step.done" @click="markTimelineStep(step)" class="text-[10px] font-semibold text-brand-700 hover:text-brand-900">✓</button>
+                </div>
+              </div>
+            </div>
+            <div>
+              <div class="text-xs font-semibold text-slate-500 uppercase mb-2">Действия</div>
+              <div class="grid grid-cols-2 gap-2">
+                <button @click="callResource('МЧС')" class="text-xs font-semibold bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded-lg">📞 МЧС</button>
+                <button @click="callResource('Посольство')" class="text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg">🛂 Посольство</button>
+                <button @click="callResource('СММП')" class="text-xs font-semibold bg-amber-600 hover:bg-amber-700 text-white px-3 py-2 rounded-lg">🚑 СММП</button>
+                <button @click="broadcastIncident()" class="text-xs font-semibold bg-slate-800 hover:bg-slate-900 text-white px-3 py-2 rounded-lg">📢 Уведомить регион</button>
+              </div>
+              <button v-if="selectedIncident.status === 'active'" @click="resolveIncident(selectedIncident)" class="mt-3 w-full text-sm font-semibold bg-brand-700 hover:bg-brand-800 text-white px-3 py-2.5 rounded-lg">Закрыть происшествие ✓</button>
+            </div>
+          </div>
+          <div v-else class="flex-1 flex items-center justify-center text-sm text-slate-400 p-10 text-center">
+            Выберите происшествие слева, чтобы посмотреть протокол реагирования и запустить действия.
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- ============================ SETTINGS ROUTE ============================ -->
+    <div v-if="currentRoute === 'settings'" class="space-y-5">
+      <section class="bg-gradient-to-r from-brand-900 via-brand-800 to-brand-700 rounded-2xl shadow-xl text-white p-5 relative overflow-hidden">
+        <div class="absolute inset-0 opacity-10" style="background-image:radial-gradient(circle at 30% 50%,white 1px,transparent 1px); background-size:24px 24px"></div>
+        <div class="relative">
+          <h2 class="text-lg font-bold">Настройки платформы</h2>
+          <p class="text-[11px] text-brand-200 mt-0.5">Профиль · интеграции · уведомления · права доступа · аудит-лог</p>
+        </div>
+      </section>
+
+      <section class="grid grid-cols-1 xl:grid-cols-2 gap-5">
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-200">
+          <div class="p-5 border-b border-slate-100">
+            <h2 class="text-base font-bold text-brand-900">Профиль пользователя</h2>
+          </div>
+          <div class="p-5 space-y-3">
+            <div class="flex items-center gap-4">
+              <div class="w-16 h-16 rounded-full bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center font-bold text-white text-lg">МА</div>
+              <div class="flex-1">
+                <input v-model="settings.profile.name" type="text" class="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 mb-1"/>
+                <input v-model="settings.profile.title" type="text" class="w-full text-xs border border-slate-200 rounded-lg px-3 py-2 text-slate-500"/>
+              </div>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <div class="text-xs font-semibold text-slate-500 uppercase mb-1">Email</div>
+                <input v-model="settings.profile.email" type="email" class="w-full text-sm border border-slate-200 rounded-lg px-3 py-2"/>
+              </div>
+              <div>
+                <div class="text-xs font-semibold text-slate-500 uppercase mb-1">Телефон</div>
+                <input v-model="settings.profile.phone" type="text" class="w-full text-sm border border-slate-200 rounded-lg px-3 py-2"/>
+              </div>
+            </div>
+            <div>
+              <div class="text-xs font-semibold text-slate-500 uppercase mb-1">Язык интерфейса</div>
+              <select v-model="settings.profile.lang" class="w-full text-sm border border-slate-200 rounded-lg px-3 py-2">
+                <option value="ru">Русский</option>
+                <option value="ky">Кыргызча</option>
+                <option value="en">English</option>
+              </select>
+            </div>
+            <button @click="saveSettings" class="w-full text-sm font-semibold bg-brand-700 hover:bg-brand-800 text-white px-3 py-2.5 rounded-lg">Сохранить профиль</button>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-200">
+          <div class="p-5 border-b border-slate-100">
+            <h2 class="text-base font-bold text-brand-900">Уведомления</h2>
+            <p class="text-xs text-slate-500 mt-0.5">Настройка каналов и приоритетов</p>
+          </div>
+          <div class="p-5 space-y-3">
+            <div v-for="pref in settings.notifPrefs" :key="pref.key" class="flex items-center justify-between p-3 rounded-xl border border-slate-100">
+              <div class="flex-1">
+                <div class="font-semibold text-sm text-slate-800">{{ pref.label }}</div>
+                <div class="text-[11px] text-slate-500">{{ pref.desc }}</div>
+              </div>
+              <div class="flex items-center gap-1">
+                <button @click="pref.channels.push('email')" v-if="!pref.channels.includes('email')" class="text-[11px] px-2 py-1 rounded border border-slate-200 text-slate-600 hover:bg-slate-50">📧</button>
+                <button @click="pref.channels = pref.channels.filter(c=>c!=='email')" v-else class="text-[11px] px-2 py-1 rounded bg-brand-100 border border-brand-300 text-brand-800">📧 email</button>
+                <button @click="pref.channels.push('sms')" v-if="!pref.channels.includes('sms')" class="text-[11px] px-2 py-1 rounded border border-slate-200 text-slate-600 hover:bg-slate-50">📱</button>
+                <button @click="pref.channels = pref.channels.filter(c=>c!=='sms')" v-else class="text-[11px] px-2 py-1 rounded bg-brand-100 border border-brand-300 text-brand-800">📱 SMS</button>
+                <button @click="pref.channels.push('push')" v-if="!pref.channels.includes('push')" class="text-[11px] px-2 py-1 rounded border border-slate-200 text-slate-600 hover:bg-slate-50">🔔</button>
+                <button @click="pref.channels = pref.channels.filter(c=>c!=='push')" v-else class="text-[11px] px-2 py-1 rounded bg-brand-100 border border-brand-300 text-brand-800">🔔 push</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-200">
+          <div class="p-5 border-b border-slate-100">
+            <h2 class="text-base font-bold text-brand-900">Интеграции</h2>
+            <p class="text-xs text-slate-500 mt-0.5">Госсистемы и внешние сервисы</p>
+          </div>
+          <div class="p-5 space-y-2">
+            <div v-for="int in settings.integrations" :key="int.key" class="flex items-center gap-3 p-3 rounded-xl border border-slate-100">
+              <div class="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0" :class="int.connected ? 'bg-brand-100 text-brand-700' : 'bg-slate-100 text-slate-400'">
+                <span class="text-lg">{{ int.icon }}</span>
+              </div>
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2">
+                  <span class="font-semibold text-sm text-slate-800">{{ int.name }}</span>
+                  <span v-if="int.connected" class="text-[10px] font-semibold bg-brand-100 text-brand-800 px-1.5 py-0.5 rounded-full">✓ подключено</span>
+                  <span v-else class="text-[10px] font-semibold bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded-full">не подключено</span>
+                </div>
+                <div class="text-[11px] text-slate-500 mt-0.5">{{ int.desc }}</div>
+                <div v-if="int.connected" class="text-[10px] font-mono text-slate-400 mt-0.5">Последняя сверка: {{ int.lastSync }}</div>
+              </div>
+              <button @click="int.connected = !int.connected; saveSettings()" class="text-xs font-semibold px-3 py-1.5 rounded-lg" :class="int.connected ? 'text-red-600 hover:bg-red-50' : 'text-brand-700 hover:bg-brand-50'">{{ int.connected ? 'Отключить' : 'Подключить' }}</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-200">
+          <div class="p-5 border-b border-slate-100">
+            <h2 class="text-base font-bold text-brand-900">Права доступа · роли</h2>
+            <p class="text-xs text-slate-500 mt-0.5">RBAC · пользователи и их права</p>
+          </div>
+          <div class="p-3 max-h-[420px] overflow-y-auto scrollbar-thin space-y-2">
+            <div v-for="u in settings.users" :key="u.id" class="p-3 rounded-xl border border-slate-100">
+              <div class="flex items-center gap-3">
+                <div class="w-9 h-9 rounded-full flex items-center justify-center text-white font-semibold text-xs" :style="{background: u.color}">{{ u.initials }}</div>
+                <div class="flex-1 min-w-0">
+                  <div class="font-semibold text-sm text-slate-800 truncate">{{ u.name }}</div>
+                  <div class="text-[11px] text-slate-500">{{ u.email }}</div>
+                </div>
+                <select v-model="u.role" class="text-[11px] border border-slate-200 rounded px-2 py-1">
+                  <option value="admin">Администратор</option>
+                  <option value="editor">Инспектор</option>
+                  <option value="viewer">Наблюдатель</option>
+                </select>
+                <span :class="u.active ? 'text-brand-600' : 'text-slate-400'" class="text-[11px]" @click="u.active = !u.active">● {{ u.active ? 'active' : 'off' }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="xl:col-span-2 bg-white rounded-2xl shadow-sm border border-slate-200">
+          <div class="p-5 border-b border-slate-100 flex items-center justify-between">
+            <div>
+              <h2 class="text-base font-bold text-brand-900">Аудит-лог действий</h2>
+              <p class="text-xs text-slate-500 mt-0.5">Последние {{ auditLog.length }} действий · неизменяемая цепочка (blockchain-anchored)</p>
+            </div>
+            <button @click="clearAuditLog" class="text-xs text-slate-500 hover:text-red-600">Очистить локальный кеш</button>
+          </div>
+          <div class="max-h-[360px] overflow-y-auto scrollbar-thin">
+            <table class="w-full text-sm">
+              <thead class="bg-slate-50 text-[11px] uppercase text-slate-500">
+                <tr>
+                  <th class="text-left px-5 py-2">Время</th>
+                  <th class="text-left px-3 py-2">Пользователь</th>
+                  <th class="text-left px-3 py-2">Действие</th>
+                  <th class="text-left px-3 py-2">Ресурс</th>
+                  <th class="text-left px-5 py-2">Hash</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-100">
+                <tr v-for="a in auditLog.slice().reverse()" :key="a.id" class="hover:bg-brand-50/20">
+                  <td class="px-5 py-2 text-xs text-slate-500">{{ a.time }}</td>
+                  <td class="px-3 py-2 text-slate-700">{{ a.user }}</td>
+                  <td class="px-3 py-2"><span class="text-[11px] font-semibold px-2 py-0.5 rounded" :class="a.color">{{ a.action }}</span></td>
+                  <td class="px-3 py-2 text-slate-600">{{ a.target }}</td>
+                  <td class="px-5 py-2 font-mono text-[10px] text-slate-400">{{ a.hash }}</td>
+                </tr>
+                <tr v-if="auditLog.length === 0"><td colspan="5" class="text-center text-sm text-slate-400 py-8">Пока нет записей</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </div>
+
     <footer class="text-center text-xs text-slate-500 py-4">
       © 2026 Министерство туризма Кыргызской Республики · Технологический партнёр: Tripsoda
       <span class="mx-2">·</span>Прототип единой цифровой платформы / Unified Digital Platform Prototype
@@ -883,10 +1591,18 @@
           <h3 class="font-bold">Уведомления</h3>
           <p class="text-[11px] text-brand-200">{{ notifications.filter(n=>!n.read).length }} непрочитанных</p>
         </div>
-        <button @click="showNotifications=false" class="text-white/70 hover:text-white"><svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button>
+        <div class="flex items-center gap-2">
+          <button @click="markAllNotificationsRead" class="text-[11px] text-brand-200 hover:text-white">Все прочитано</button>
+          <button @click="showNotifications=false" class="text-white/70 hover:text-white"><svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button>
+        </div>
+      </div>
+      <div class="border-b border-slate-100 flex text-[11px]">
+        <button v-for="f in notifFilters" :key="f.value" @click="notifFilter = f.value"
+                :class="notifFilter === f.value ? 'text-brand-800 border-brand-600 font-semibold bg-brand-50' : 'text-slate-500 border-transparent hover:bg-slate-50'"
+                class="flex-1 py-2 border-b-2 transition">{{ f.label }}</button>
       </div>
       <div class="flex-1 overflow-y-auto scrollbar-thin divide-y divide-slate-100">
-        <div v-for="n in notifications" :key="n.id" @click="n.read=true" class="p-4 hover:bg-slate-50 cursor-pointer" :class="!n.read?'bg-brand-50/30':''">
+        <div v-for="n in filteredNotifications" :key="n.id" @click="markNotificationRead(n)" class="p-4 hover:bg-slate-50 cursor-pointer" :class="!n.read?'bg-brand-50/30':''">
           <div class="flex items-start gap-3">
             <div class="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" :class="n.priority==='high'?'bg-red-100 text-red-700':n.priority==='med'?'bg-amber-100 text-amber-700':'bg-brand-100 text-brand-700'">
               <span class="text-sm">{{ n.icon }}</span>
@@ -897,10 +1613,17 @@
                 <span v-if="!n.read" class="w-2 h-2 bg-brand-600 rounded-full flex-shrink-0"></span>
               </div>
               <div class="text-xs text-slate-600 mt-0.5">{{ n.text }}</div>
-              <div class="text-[10px] text-slate-400 mt-1">{{ n.time }}</div>
+              <div class="flex items-center justify-between mt-1">
+                <span class="text-[10px] text-slate-400">{{ n.time }}</span>
+                <div class="flex items-center gap-1">
+                  <button v-if="n.route" @click.stop="navigateTo(n.route); showNotifications=false; markNotificationRead(n)" class="text-[10px] font-semibold text-brand-700 hover:text-brand-900">Открыть →</button>
+                  <button @click.stop="dismissNotification(n)" class="text-[10px] text-slate-400 hover:text-red-600">✕</button>
+                </div>
+              </div>
             </div>
           </div>
         </div>
+        <div v-if="filteredNotifications.length === 0" class="p-10 text-center text-sm text-slate-400">Нет уведомлений</div>
       </div>
     </div>
   </transition>
@@ -958,6 +1681,198 @@
             </div>
           </div>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- OPERATOR FORM MODAL -->
+  <div v-if="operatorForm.open" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm" @click.self="operatorForm.open = false">
+    <div class="modal-enter bg-white rounded-2xl shadow-2xl max-w-2xl w-full overflow-hidden">
+      <div class="bg-gradient-to-r from-brand-800 to-brand-700 text-white p-5 flex items-center justify-between">
+        <div>
+          <h3 class="text-lg font-bold">{{ operatorForm.data.id ? 'Редактирование оператора' : 'Новый оператор' }}</h3>
+          <p class="text-xs text-brand-200 mt-0.5">Реестр туроператоров и поставщиков</p>
+        </div>
+        <button @click="operatorForm.open = false" class="text-white/70 hover:text-white"><svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button>
+      </div>
+      <div class="p-5 grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div class="md:col-span-2">
+          <div class="text-xs font-semibold text-slate-500 uppercase mb-1">Название</div>
+          <input v-model="operatorForm.data.name" type="text" class="w-full text-sm border border-slate-200 rounded-lg px-3 py-2" placeholder='ОсОО "Название"'/>
+        </div>
+        <div>
+          <div class="text-xs font-semibold text-slate-500 uppercase mb-1">Тип</div>
+          <select v-model="operatorForm.data.type" class="w-full text-sm border border-slate-200 rounded-lg px-3 py-2">
+            <option>ОсОО</option><option>ИП</option><option>Юрт-кемпинг</option><option>Транспорт</option><option>Отель</option>
+          </select>
+        </div>
+        <div>
+          <div class="text-xs font-semibold text-slate-500 uppercase mb-1">Регион</div>
+          <select v-model="operatorForm.data.region" class="w-full text-sm border border-slate-200 rounded-lg px-3 py-2">
+            <option v-for="r in regionOptions" :key="r">{{ r }}</option>
+          </select>
+        </div>
+        <div>
+          <div class="text-xs font-semibold text-slate-500 uppercase mb-1">ИНН</div>
+          <input v-model="operatorForm.data.inn" type="text" class="w-full text-sm border border-slate-200 rounded-lg px-3 py-2" placeholder="00108202410123"/>
+        </div>
+        <div>
+          <div class="text-xs font-semibold text-slate-500 uppercase mb-1">Номер лицензии</div>
+          <input v-model="operatorForm.data.license" type="text" class="w-full text-sm border border-slate-200 rounded-lg px-3 py-2" placeholder="TO-KG-00456"/>
+        </div>
+        <div>
+          <div class="text-xs font-semibold text-slate-500 uppercase mb-1">Директор</div>
+          <input v-model="operatorForm.data.director" type="text" class="w-full text-sm border border-slate-200 rounded-lg px-3 py-2"/>
+        </div>
+        <div>
+          <div class="text-xs font-semibold text-slate-500 uppercase mb-1">Телефон</div>
+          <input v-model="operatorForm.data.phone" type="text" class="w-full text-sm border border-slate-200 rounded-lg px-3 py-2" placeholder="+996 312 ..."/>
+        </div>
+        <div>
+          <div class="text-xs font-semibold text-slate-500 uppercase mb-1">Оборот (сом/мес)</div>
+          <input v-model.number="operatorForm.data.revenue" type="number" class="w-full text-sm border border-slate-200 rounded-lg px-3 py-2"/>
+        </div>
+        <div>
+          <div class="text-xs font-semibold text-slate-500 uppercase mb-1">Compliance (0–100)</div>
+          <input v-model.number="operatorForm.data.compliance" type="number" min="0" max="100" class="w-full text-sm border border-slate-200 rounded-lg px-3 py-2"/>
+        </div>
+        <div>
+          <div class="text-xs font-semibold text-slate-500 uppercase mb-1">Статус</div>
+          <select v-model="operatorForm.data.status" class="w-full text-sm border border-slate-200 rounded-lg px-3 py-2">
+            <option value="active">Действует</option>
+            <option value="warning">Предупреждение</option>
+            <option value="suspended">Приостановлен</option>
+            <option value="expired">Просрочен</option>
+          </select>
+        </div>
+      </div>
+      <div class="p-5 border-t border-slate-100 flex items-center justify-between">
+        <button v-if="operatorForm.data.id" @click="deleteOperator(operatorForm.data.id)" class="text-sm text-red-600 hover:text-red-700 font-semibold">Удалить</button>
+        <div class="flex items-center gap-2 ml-auto">
+          <button @click="operatorForm.open = false" class="text-sm text-slate-600 hover:text-slate-900 px-3 py-2">Отмена</button>
+          <button @click="saveOperator" class="text-sm font-semibold bg-brand-700 hover:bg-brand-800 text-white px-4 py-2 rounded-lg">Сохранить</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- OPERATOR DETAIL MODAL -->
+  <div v-if="operatorDetail.open" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm" @click.self="operatorDetail.open = false">
+    <div class="modal-enter bg-white rounded-2xl shadow-2xl max-w-3xl w-full overflow-hidden max-h-[90vh] flex flex-col">
+      <div class="bg-gradient-to-r from-brand-800 to-brand-700 text-white p-5 flex items-center justify-between">
+        <div>
+          <h3 class="text-lg font-bold">{{ operatorDetail.data?.name }}</h3>
+          <p class="text-xs text-brand-200 mt-0.5">{{ operatorDetail.data?.type }} · {{ operatorDetail.data?.region }} · ИНН {{ operatorDetail.data?.inn }}</p>
+        </div>
+        <button @click="operatorDetail.open = false" class="text-white/70 hover:text-white"><svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button>
+      </div>
+      <div class="p-6 overflow-y-auto scrollbar-thin space-y-5">
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div class="bg-slate-50 rounded-xl p-3 border border-slate-200 text-center">
+            <div class="text-[10px] text-slate-500 uppercase">Оборот</div>
+            <div class="text-lg font-bold text-brand-900">{{ formatSom(operatorDetail.data?.revenue || 0) }}</div>
+            <div class="text-[10px] text-slate-500">сом/мес</div>
+          </div>
+          <div class="bg-brand-50 rounded-xl p-3 border border-brand-200 text-center">
+            <div class="text-[10px] text-brand-800 uppercase">Налог</div>
+            <div class="text-lg font-bold text-brand-800">{{ formatSom(operatorDetail.data?.tax || 0) }}</div>
+            <div class="text-[10px] text-brand-700">сом/мес</div>
+          </div>
+          <div class="bg-slate-50 rounded-xl p-3 border border-slate-200 text-center">
+            <div class="text-[10px] text-slate-500 uppercase">Compliance</div>
+            <div class="text-lg font-bold" :class="operatorDetail.data?.compliance >= 80 ? 'text-brand-700' : operatorDetail.data?.compliance >= 60 ? 'text-amber-600' : 'text-red-600'">{{ operatorDetail.data?.compliance }}</div>
+            <div class="text-[10px] text-slate-500">/100</div>
+          </div>
+          <div class="bg-slate-50 rounded-xl p-3 border border-slate-200 text-center">
+            <div class="text-[10px] text-slate-500 uppercase">Лицензия до</div>
+            <div class="text-sm font-bold text-slate-800">{{ operatorDetail.data?.licenseExpiry || '10.06.2028' }}</div>
+          </div>
+        </div>
+        <div>
+          <div class="text-xs font-semibold text-slate-500 uppercase mb-2">Последние проверки</div>
+          <div class="space-y-2">
+            <div v-for="a in (operatorDetail.data?.audits || defaultAudits())" :key="a.date" class="p-3 rounded-lg border border-slate-100 flex items-center justify-between text-xs">
+              <div>
+                <div class="font-semibold text-slate-800">{{ a.type }} · {{ a.body }}</div>
+                <div class="text-slate-500">{{ a.date }} · инспектор: {{ a.inspector }}</div>
+              </div>
+              <span class="text-[11px] px-2 py-0.5 rounded font-semibold" :class="a.result === 'ok' ? 'bg-brand-100 text-brand-800' : 'bg-amber-100 text-amber-800'">{{ a.result === 'ok' ? '✓ Норма' : 'Нарушения' }}</span>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div class="text-xs font-semibold text-slate-500 uppercase mb-2">Действия</div>
+          <div class="grid grid-cols-2 md:grid-cols-3 gap-2">
+            <button @click="scheduleAudit(operatorDetail.data)" class="text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-800 px-3 py-2 rounded-lg">📋 Назначить аудит</button>
+            <button @click="contactOperator(operatorDetail.data)" class="text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-800 px-3 py-2 rounded-lg">📞 Связаться</button>
+            <button @click="openOperatorForm(operatorDetail.data); operatorDetail.open=false" class="text-xs font-semibold bg-brand-100 hover:bg-brand-200 text-brand-800 px-3 py-2 rounded-lg">✏️ Редактировать</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- INCIDENT FORM MODAL -->
+  <div v-if="incidentForm.open" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm" @click.self="incidentForm.open = false">
+    <div class="modal-enter bg-white rounded-2xl shadow-2xl max-w-2xl w-full overflow-hidden">
+      <div class="bg-gradient-to-r from-red-800 to-red-600 text-white p-5 flex items-center justify-between">
+        <div>
+          <h3 class="text-lg font-bold">Новое происшествие / ЧС</h3>
+          <p class="text-xs text-white/80 mt-0.5">Регистрация вызова в систему кризис-центра</p>
+        </div>
+        <button @click="incidentForm.open = false" class="text-white/70 hover:text-white"><svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button>
+      </div>
+      <div class="p-5 grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div class="md:col-span-2">
+          <div class="text-xs font-semibold text-slate-500 uppercase mb-1">Заголовок</div>
+          <input v-model="incidentForm.data.title" type="text" class="w-full text-sm border border-slate-200 rounded-lg px-3 py-2" placeholder="Например: Травма турист в Ала-Арче"/>
+        </div>
+        <div>
+          <div class="text-xs font-semibold text-slate-500 uppercase mb-1">Тип</div>
+          <select v-model="incidentForm.data.icon" class="w-full text-sm border border-slate-200 rounded-lg px-3 py-2">
+            <option value="🚨">🚨 SOS</option><option value="🩹">🩹 Травма</option><option value="⛰️">⛰️ Горы/погода</option><option value="🛑">🛑 Пропажа</option><option value="💊">💊 Медицина</option><option value="🚗">🚗 ДТП</option>
+          </select>
+        </div>
+        <div>
+          <div class="text-xs font-semibold text-slate-500 uppercase mb-1">Приоритет</div>
+          <select v-model="incidentForm.data.severity" class="w-full text-sm border border-slate-200 rounded-lg px-3 py-2">
+            <option value="critical">critical</option><option value="high">high</option><option value="med">med</option><option value="low">low</option>
+          </select>
+        </div>
+        <div>
+          <div class="text-xs font-semibold text-slate-500 uppercase mb-1">Регион</div>
+          <select v-model="incidentForm.data.region" class="w-full text-sm border border-slate-200 rounded-lg px-3 py-2">
+            <option v-for="r in regionOptions" :key="r">{{ r }}</option>
+          </select>
+        </div>
+        <div>
+          <div class="text-xs font-semibold text-slate-500 uppercase mb-1">GPS координаты</div>
+          <input v-model="incidentForm.data.gps" type="text" class="w-full text-sm border border-slate-200 rounded-lg px-3 py-2" placeholder="42.6321, 74.4881"/>
+        </div>
+        <div>
+          <div class="text-xs font-semibold text-slate-500 uppercase mb-1">Турист</div>
+          <input v-model="incidentForm.data.tourist" type="text" class="w-full text-sm border border-slate-200 rounded-lg px-3 py-2" placeholder="Ф.И.О"/>
+        </div>
+        <div>
+          <div class="text-xs font-semibold text-slate-500 uppercase mb-1">Гражданство</div>
+          <input v-model="incidentForm.data.nationality" type="text" class="w-full text-sm border border-slate-200 rounded-lg px-3 py-2"/>
+        </div>
+        <div>
+          <div class="text-xs font-semibold text-slate-500 uppercase mb-1">Гид</div>
+          <input v-model="incidentForm.data.guide" type="text" class="w-full text-sm border border-slate-200 rounded-lg px-3 py-2"/>
+        </div>
+        <div>
+          <div class="text-xs font-semibold text-slate-500 uppercase mb-1">Телефон гида</div>
+          <input v-model="incidentForm.data.guidePhone" type="text" class="w-full text-sm border border-slate-200 rounded-lg px-3 py-2"/>
+        </div>
+        <div class="md:col-span-2">
+          <div class="text-xs font-semibold text-slate-500 uppercase mb-1">Описание</div>
+          <textarea v-model="incidentForm.data.desc" rows="2" class="w-full text-sm border border-slate-200 rounded-lg px-3 py-2"></textarea>
+        </div>
+      </div>
+      <div class="p-5 border-t border-slate-100 flex items-center justify-end gap-2">
+        <button @click="incidentForm.open = false" class="text-sm text-slate-600 hover:text-slate-900 px-3 py-2">Отмена</button>
+        <button @click="saveIncident" class="text-sm font-semibold bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg">Зарегистрировать ЧС</button>
       </div>
     </div>
   </div>
@@ -1042,6 +1957,22 @@
     </div>
   </div>
 
+  <!-- TOASTS -->
+  <div class="fixed bottom-6 right-6 z-[60] space-y-2 max-w-sm">
+    <div v-for="t in toasts" :key="t.id" class="modal-enter bg-white rounded-xl shadow-2xl border-l-4 p-3 flex items-start gap-3"
+         :class="t.type === 'error' ? 'border-red-500' : t.type === 'warn' ? 'border-amber-500' : 'border-brand-500'">
+      <div class="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 text-white"
+           :class="t.type === 'error' ? 'bg-red-500' : t.type === 'warn' ? 'bg-amber-500' : 'bg-brand-500'">
+        <span class="text-sm">{{ t.type === 'error' ? '✕' : t.type === 'warn' ? '!' : '✓' }}</span>
+      </div>
+      <div class="flex-1 min-w-0">
+        <div class="font-semibold text-sm text-slate-800">{{ t.title }}</div>
+        <div v-if="t.msg" class="text-xs text-slate-600 mt-0.5">{{ t.msg }}</div>
+      </div>
+      <button @click="dismissToast(t.id)" class="text-slate-400 hover:text-slate-700 text-lg leading-none">×</button>
+    </div>
+  </div>
+
 </div>
 
 <script>
@@ -1051,6 +1982,39 @@ createApp({
   setup() {
     const currentTime = ref('');
     const updateTime = () => { currentTime.value = new Date().toLocaleString('ru-RU', { day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit' }); };
+
+    // ============ ROUTER ============
+    const routes = ref([
+      { id:'dashboard', label:'Панель управления' },
+      { id:'analytics', label:'Аналитика регионов' },
+      { id:'operators', label:'Реестр операторов', badge:'', badgeClass:'bg-amber-500 text-white' },
+      { id:'reports', label:'Отчёты для МИД и ГНС' },
+      { id:'crisis', label:'Управление кризисами', badge:'', badgeClass:'bg-red-500 text-white' },
+      { id:'settings', label:'Настройки' }
+    ]);
+    const validRoutes = ['dashboard','analytics','operators','reports','crisis','settings'];
+    const currentRoute = ref('dashboard');
+    const navigateTo = (r) => {
+      if (!validRoutes.includes(r)) r = 'dashboard';
+      currentRoute.value = r;
+      if (window.location.hash !== '#/' + r) window.location.hash = '#/' + r;
+      window.scrollTo({ top:0, behavior:'smooth' });
+    };
+    const initRoute = () => {
+      const h = window.location.hash.replace('#/','').replace('#','');
+      if (validRoutes.includes(h)) currentRoute.value = h;
+    };
+    const onHashChange = () => initRoute();
+
+    // ============ TOASTS ============
+    const toasts = ref([]);
+    let toastCounter = 0;
+    const showToast = (title, msg='', type='ok', ttl=4200) => {
+      const id = ++toastCounter;
+      toasts.value.push({ id, title, msg, type });
+      setTimeout(() => { toasts.value = toasts.value.filter(t => t.id !== id); }, ttl);
+    };
+    const dismissToast = (id) => { toasts.value = toasts.value.filter(t => t.id !== id); };
 
     const strategicKpis = [
       { label:'Туристов · YTD 2026', value:'847 тыс.', plan:'1,8 млн', delta:'+34,2%', progress:47 },
@@ -1109,8 +2073,8 @@ createApp({
       { id:7, x:600, y:175, color:'#3b82f6', label:'5' }
     ]);
     const activeTours = computed(() => mapPins.value.reduce((s,p) => s + parseInt(p.label), 0));
-    const regionLoad = { 'Чуй':62, 'Иссык-Куль':88, 'Талас':35, 'Нарын':48, 'Джалал-Абад':40, 'Ош':52, 'Баткен':22 };
-    const regionFill = (r) => { const l = regionLoad[r]||30; return l>80?'#dc2626':l>60?'#f59e0b':'#059669'; };
+    const regionLoad = ref({ 'Чуй':62, 'Иссык-Куль':88, 'Талас':35, 'Нарын':48, 'Джалал-Абад':40, 'Ош':52, 'Баткен':22 });
+    const regionFill = (r) => { const l = regionLoad.value[r]||30; return l>80?'#dc2626':l>60?'#f59e0b':'#059669'; };
     const filterByRegion = (r) => { console.log('filter by',r); };
 
     // Weather + risk
@@ -1179,7 +2143,7 @@ createApp({
 
     // Blockchain
     const currentBlock = ref(8482917);
-    const blockchainTxs = [
+    const blockchainTxs = ref([
       { type:'LICENSE_ISSUED', label:'Лицензия выдана: Чолпон Жумабаева (KG-GD-00141)', hash:'0x7f3a..b821', block:8482917, validator:'node-bishkek-01', time:'14:32:18', amount:'—', confirmations:12 },
       { type:'PAYMENT_SETTLED', label:'Налог удержан: TX-2026-0610-8821 (4 850 сом)', hash:'0x8b21..14f0', block:8482914, validator:'node-osh-02', time:'14:32:02', amount:'4 850 сом', confirmations:15 },
       { type:'LICENSE_ISSUED', label:'Лицензия выдана: Назгуль Орозова (KG-GD-00152)', hash:'0x14f0..72a3', block:8482908, validator:'node-karakol-01', time:'14:28:44', amount:'—', confirmations:21 },
@@ -1187,7 +2151,7 @@ createApp({
       { type:'LICENSE_REVOKED', label:'Отозвана: Каныбек Кенжебеков (KG-GD-00098)', hash:'0x91dd..3f12', block:8482891, validator:'node-jalalabad-01', time:'13:58:33', amount:'—', confirmations:38 },
       { type:'PAYMENT_SETTLED', label:'Налог удержан: TX-2026-0610-8815 (720 сом)', hash:'0x3f12..a7c4', block:8482877, validator:'node-bishkek-01', time:'13:45:22', amount:'720 сом', confirmations:52 },
       { type:'AUDIT', label:'Аудит ГНС: подтверждено 14 728 транзакций за месяц', hash:'0xa7c4..1199', block:8482851, validator:'node-bishkek-03', time:'13:00:00', amount:'—', confirmations:78 }
-    ];
+    ]);
 
     // QR Modal
     const qrModal = ref({ open:false, guide:null, viewMode:false, allDone:false, steps:[] });
@@ -1300,26 +2264,748 @@ createApp({
     const estimatedRevenue = ref(218450000);
     const formatSom = (n) => Math.round(n).toLocaleString('ru-RU');
 
-    let timer, blockTimer;
+    // ============ GUIDE / APPLICATION SEARCH ============
+    const guideSearch = ref('');
+    const filteredGuides = computed(() => {
+      const q = guideSearch.value.trim().toLowerCase();
+      if (!q) return guides.value;
+      return guides.value.filter(g =>
+        (g.name || '').toLowerCase().includes(q) ||
+        (g.id || '').toLowerCase().includes(q) ||
+        (g.region || '').toLowerCase().includes(q) ||
+        (g.languages || '').toLowerCase().includes(q)
+      );
+    });
+    const applicationSearch = ref('');
+    const applicationReviewer = ref('all');
+    const reviewerList = computed(() => [...new Set(applications.value.map(a => a.reviewer))]);
+    const filteredApplications = computed(() => {
+      const q = applicationSearch.value.trim().toLowerCase();
+      return applications.value.filter(a => {
+        if (applicationReviewer.value !== 'all' && a.reviewer !== applicationReviewer.value) return false;
+        if (!q) return true;
+        return (a.name||'').toLowerCase().includes(q) || (a.id||'').toLowerCase().includes(q) || (a.region||'').toLowerCase().includes(q) || (a.languages||'').toLowerCase().includes(q);
+      });
+    });
+
+    // ============ MAP LAYERS ============
+    const mapLayer = ref('туры');
+    const mapLayers = ['туры','гиды','происшествия'];
+    const drilldownRegion = (r) => {
+      analyticsRegion.value = r;
+      navigateTo('analytics');
+      showToast('Регион открыт', 'Аналитика: ' + r, 'ok');
+    };
+
+    // ============ NOTIFICATIONS ============
+    const notifFilter = ref('all');
+    const notifFilters = [
+      { value:'all', label:'Все' },
+      { value:'unread', label:'Непрочит.' },
+      { value:'high', label:'Приоритет' }
+    ];
+    const filteredNotifications = computed(() => {
+      if (notifFilter.value === 'unread') return notifications.value.filter(n => !n.read);
+      if (notifFilter.value === 'high') return notifications.value.filter(n => n.priority === 'high');
+      return notifications.value;
+    });
+    const markAllNotificationsRead = () => { notifications.value.forEach(n => n.read = true); showToast('Прочитано', 'Все уведомления отмечены', 'ok'); };
+    const markNotificationRead = (n) => { n.read = true; };
+    const dismissNotification = (n) => { notifications.value = notifications.value.filter(x => x.id !== n.id); };
+    notifications.value.forEach(n => {
+      if (!n.route) {
+        if (n.title.includes('Экстренный') || n.title.includes('вызов') || n.title.includes('SOS') || n.title.includes('Ала-Арче')) n.route = 'crisis';
+        else if (n.title.includes('гид') || n.title.includes('Жалоба') || n.title.includes('сертифиц')) n.route = 'operators';
+        else if (n.title.includes('отчёт') || n.title.includes('ГНС') || n.title.includes('МИД')) n.route = 'reports';
+        else if (n.title.includes('перевал') || n.title.includes('Тоо-Ашуу')) n.route = 'crisis';
+      }
+    });
+
+    // ============ CSV EXPORT ============
+    const csvDownload = (filename, rows) => {
+      const csv = rows.map(r => r.map(c => {
+        const s = String(c ?? '');
+        return /[",\n;]/.test(s) ? '"' + s.replace(/"/g,'""') + '"' : s;
+      }).join(';')).join('\n');
+      const bom = '﻿';
+      const blob = new Blob([bom + csv], { type:'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    };
+    const exportTaxCsv = () => {
+      const rows = [
+        ['ID транзакции','Время','Услуга','Гид/Поставщик','Брутто (сом)','Налог 10% (сом)','К поставщику (сом)','Статус'],
+        ...transactions.value.map(t => [t.id, t.time, t.service, t.provider, t.amount, Math.round(t.amount*0.1), Math.round(t.amount*0.9), 'Налог удержан'])
+      ];
+      csvDownload('gns-tax-export-' + new Date().toISOString().slice(0,10) + '.csv', rows);
+      addAudit('EXPORT_TAX_CSV', 'transactions.csv');
+      showToast('CSV сформирован', 'Файл готов к отправке в ГНС', 'ok');
+    };
+
+    // ============ ANALYTICS ============
+    const regionOptions = ['Иссык-Куль','Чуй','Талас','Нарын','Джалал-Абад','Ош','Баткен','Бишкек','Ала-Арча','Каракол','Сон-Куль','Сары-Челек'];
+    const analyticsRegion = ref('all');
+    const analyticsRange = ref('30d');
+    const analyticsKpis = computed(() => {
+      const mult = analyticsRange.value === '7d' ? 0.24 : analyticsRange.value === '30d' ? 1 : analyticsRange.value === '90d' ? 2.8 : 6.1;
+      const rev = Math.round(218 * mult);
+      const tour = Math.round(14728 * mult);
+      return [
+        { label:'Доход региона', value: rev + ' млн сом', delta:'+34,2%', hint:'к прошл. периоду' },
+        { label:'Туристов', value: tour.toLocaleString('ru-RU'), delta:'+18,7%', hint:'уникальных гостей' },
+        { label:'Средний чек', value:'22 400 сом', delta:'+6,1%', hint:'per booking' },
+        { label:'Ср. рейтинг', value:'4,72 / 5,0', delta:'+0,18', hint:'по опросам' }
+      ];
+    });
+    const heatmap = (() => {
+      const days = ['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
+      return days.map((d, di) => {
+        const cells = [];
+        for (let h=0; h<24; h++) {
+          let base = 0;
+          if (h >= 6 && h <= 22) base = 10 + Math.sin((h-6)/16 * Math.PI) * 40;
+          if (di >= 4) base *= 1.4;
+          base *= 0.7 + Math.random() * 0.6;
+          cells.push(Math.round(base));
+        }
+        return { day: d, cells };
+      });
+    })();
+    const heatmapColor = (v) => {
+      const t = Math.min(1, v / 60);
+      const g = Math.round(158 - t * 100);
+      const b = Math.round(215 - t * 130);
+      const r = Math.round(20 + t * 60);
+      return `rgb(${r}, ${g}, ${b})`;
+    };
+    const heatmapPeak = computed(() => {
+      let max = 0, peak = { day:'Сб', hour:19, val:0 };
+      heatmap.forEach(row => row.cells.forEach((c, h) => { if (c > max) { max = c; peak = { day:row.day, hour:h, val:c }; }}));
+      return peak;
+    });
+    const heatmapCellInfo = (day, hour, val) => showToast(day + ' · ' + hour + ':00', val + ' туров в этот час', 'ok', 2500);
+    const regionAnalytics = [
+      { name:'Иссык-Куль', rev2025:82, rev2026:132, tourists:4218, deltaPct:61 },
+      { name:'Ала-Арча', rev2025:38, rev2026:58, tourists:2411, deltaPct:53 },
+      { name:'Каракол', rev2025:31, rev2026:47, tourists:1892, deltaPct:52 },
+      { name:'Ош', rev2025:24, rev2026:35, tourists:1442, deltaPct:46 },
+      { name:'Сон-Куль', rev2025:18, rev2026:28, tourists:872, deltaPct:56 },
+      { name:'Джалал-Абад', rev2025:14, rev2026:19, tourists:641, deltaPct:36 },
+      { name:'Талас', rev2025:12, rev2026:16, tourists:498, deltaPct:33 },
+      { name:'Нарын', rev2025:8, rev2026:11, tourists:342, deltaPct:38 },
+      { name:'Баткен', rev2025:5, rev2026:7, tourists:212, deltaPct:40 }
+    ];
+    const topAttractions = [
+      { name:'Оз. Иссык-Куль (Чолпон-Ата)', region:'Иссык-Куль', visits:4218, avg:22400, rating:4.9, reviews:1284, icon:'🏞️' },
+      { name:'Национ. парк Ала-Арча', region:'Ала-Арча', visits:3411, avg:12800, rating:4.8, reviews:892, icon:'⛰️' },
+      { name:'Ущелье Джеты-Огуз', region:'Каракол', visits:2124, avg:18200, rating:4.85, reviews:612, icon:'🌄' },
+      { name:'Сон-Куль (юрт-кемпинги)', region:'Нарын', visits:1892, avg:31000, rating:4.9, reviews:521, icon:'⛺' },
+      { name:'Сулайман-Тоо', region:'Ош', visits:1442, avg:7200, rating:4.7, reviews:378, icon:'🗻' },
+      { name:'Сары-Челек', region:'Джалал-Абад', visits:872, avg:24600, rating:4.75, reviews:224, icon:'🏔️' },
+      { name:'Башня Бурана', region:'Чуй', visits:1211, avg:4200, rating:4.6, reviews:298, icon:'🏛️' },
+      { name:'Каньон Сказка', region:'Иссык-Куль', visits:2018, avg:9400, rating:4.85, reviews:412, icon:'🎨' }
+    ];
+    const guideProductivity = computed(() => {
+      const base = [
+        { id:'KG-GD-00141', name:'Чолпон Жумабаева', initials:'ЧЖ', color:'#7c3aed', region:'Каракол', tours:98, revenue:2941200, rating:4.95 },
+        { id:'KG-GD-00128', name:'Азамат Асанов', initials:'АА', color:'#047857', region:'Иссык-Куль', tours:92, revenue:2648800, rating:4.9 },
+        { id:'KG-GD-00152', name:'Назгуль Орозова', initials:'НО', color:'#0369a1', region:'Бишкек', tours:78, revenue:1418200, rating:4.7 },
+        { id:'KG-GD-00129', name:'Айгуль Бекмуратова', initials:'АБ', color:'#0d9488', region:'Ала-Арча', tours:74, revenue:1512400, rating:4.8 },
+        { id:'KG-GD-00098', name:'Айнур Токтогулова', initials:'АТ', color:'#be185d', region:'Иссык-Куль', tours:71, revenue:1854100, rating:4.82 },
+        { id:'KG-GD-00107', name:'Данияр Абдыкадыров', initials:'ДА', color:'#b45309', region:'Ош', tours:68, revenue:1214800, rating:4.68 },
+        { id:'KG-GD-00114', name:'Асель Асанкожоева', initials:'АА', color:'#0891b2', region:'Каракол', tours:64, revenue:1381200, rating:4.79 },
+        { id:'KG-GD-00121', name:'Рустам Джолдошев', initials:'РД', color:'#dc2626', region:'Джалал-Абад', tours:57, revenue:942100, rating:4.6 },
+        { id:'KG-GD-00135', name:'Айсулуу Бегалиева', initials:'АБ', color:'#059669', region:'Нарын', tours:52, revenue:1128400, rating:4.84 },
+        { id:'KG-GD-00142', name:'Мирлан Кудайбергенов', initials:'МК', color:'#7c3aed', region:'Талас', tours:48, revenue:768200, rating:4.55 },
+        { id:'KG-GD-00149', name:'Гульнара Кадырбекова', initials:'ГК', color:'#f59e0b', region:'Сон-Куль', tours:42, revenue:1042100, rating:4.88 },
+        { id:'KG-GD-00156', name:'Талант Осмонов', initials:'ТО', color:'#0d9488', region:'Иссык-Куль', tours:38, revenue:721400, rating:4.72 }
+      ];
+      if (analyticsRegion.value === 'all') return base;
+      return base.filter(g => g.region === analyticsRegion.value || analyticsRegion.value === 'Все регионы');
+    });
+    const forecastRaw = [
+      { label:'Wk1', val:0.62 }, { label:'Wk2', val:0.71 }, { label:'Wk3', val:0.86 }, { label:'Wk4', val:0.94 },
+      { label:'Wk5', val:0.88 }, { label:'Wk6', val:0.73 }, { label:'Wk7', val:0.68 }, { label:'Wk8', val:0.61 }
+    ];
+    const forecastPoints = forecastRaw.map((p, i) => ({ label:p.label, x:60 + i*82, y:200 - p.val * 160 }));
+    const forecastLine = forecastPoints.map(p => `${p.x},${p.y}`).join(' ');
+    const forecastUpper = forecastRaw.map((p, i) => `${60 + i*82},${200 - Math.min(1, p.val+0.09) * 160}`).join(' ');
+    const forecastLower = forecastRaw.map((p, i) => `${60 + i*82},${200 - Math.max(0, p.val-0.11) * 160}`).join(' ');
+    const forecastArea = (() => {
+      const top = forecastRaw.map((p, i) => `${60 + i*82},${200 - Math.min(1, p.val+0.09) * 160}`);
+      const bot = forecastRaw.map((p, i) => `${60 + i*82},${200 - Math.max(0, p.val-0.11) * 160}`).reverse();
+      return [...top, ...bot].join(' ');
+    })();
+    const createDispatchTask = (msg) => {
+      notifications.value.unshift({ id: Date.now(), priority:'med', icon:'📋', title:'Диспетч-задача создана', text: msg, time:'сейчас', read:false, route:'crisis' });
+      addAudit('DISPATCH_TASK_CREATED', msg.slice(0,40));
+      showToast('Задача создана', msg, 'ok');
+    };
+    const exportAnalyticsCsv = () => {
+      const rows = [
+        ['Регион','Доход 2025 (млн)','Доход 2026 (млн)','Прирост %','Туристы 2026'],
+        ...regionAnalytics.map(r => [r.name, r.rev2025, r.rev2026, r.deltaPct + '%', r.tourists])
+      ];
+      csvDownload('analytics-regions-' + new Date().toISOString().slice(0,10) + '.csv', rows);
+      addAudit('EXPORT_ANALYTICS', 'regions.csv');
+      showToast('CSV сформирован', 'Аналитика регионов', 'ok');
+    };
+
+    // ============ OPERATORS ============
+    const operators = ref(loadJson('kg-operators', [
+      { id:'OP-00101', name:'ОсОО "Тянь-Шань Тревел"', type:'ОсОО', region:'Иссык-Куль', inn:'00108202410123', license:'TO-KG-00456', director:'Аскаров К.', phone:'+996 312 88-12-45', revenue:8420000, tax:842000, compliance:92, status:'active', licenseExpiry:'10.06.2028' },
+      { id:'OP-00102', name:'ОсОО "Кыргыз Тур"', type:'ОсОО', region:'Бишкек', inn:'00108202410198', license:'TO-KG-00312', director:'Мамбеталиев Р.', phone:'+996 312 66-42-18', revenue:5210000, tax:521000, compliance:88, status:'active', licenseExpiry:'22.11.2027' },
+      { id:'OP-00103', name:'ИП Орозбекова Г.', type:'ИП', region:'Сон-Куль', inn:'20512198712345', license:'IP-KG-04512', director:'Орозбекова Г.', phone:'+996 555 12-89-42', revenue:1440000, tax:144000, compliance:85, status:'active', licenseExpiry:'01.09.2027' },
+      { id:'OP-00104', name:'Юрт-кемпинг "Ак-Куу"', type:'Юрт-кемпинг', region:'Иссык-Куль', inn:'20487199103421', license:'YK-KG-00089', director:'Джусупов Т.', phone:'+996 550 45-12-88', revenue:2180000, tax:218000, compliance:78, status:'warning', licenseExpiry:'15.08.2026' },
+      { id:'OP-00105', name:'Транспорт "Ала-Тоо Транс"', type:'Транспорт', region:'Чуй', inn:'00108201810442', license:'TR-KG-00212', director:'Иманалиев Б.', phone:'+996 706 88-92-14', revenue:3910000, tax:391000, compliance:81, status:'active', licenseExpiry:'12.04.2028' },
+      { id:'OP-00106', name:'Отель "Каракол Резорт"', type:'Отель', region:'Каракол', inn:'00108202010775', license:'HT-KG-00048', director:'Токтогулова А.', phone:'+996 3922 5-14-88', revenue:6820000, tax:682000, compliance:94, status:'active', licenseExpiry:'30.03.2029' },
+      { id:'OP-00107', name:'ОсОО "Silk Road KG"', type:'ОсОО', region:'Ош', inn:'00108202410891', license:'TO-KG-00521', director:'Абдулаев Ж.', phone:'+996 3222 4-18-96', revenue:2440000, tax:244000, compliance:66, status:'warning', licenseExpiry:'05.07.2026' },
+      { id:'OP-00108', name:'ИП Кадыров М.', type:'ИП', region:'Ала-Арча', inn:'20512198812445', license:'IP-KG-04618', director:'Кадыров М.', phone:'+996 700 45-88-12', revenue:820000, tax:82000, compliance:71, status:'active', licenseExpiry:'18.11.2027' },
+      { id:'OP-00109', name:'Юрт-кемпинг "Сон-Куль Kings"', type:'Юрт-кемпинг', region:'Нарын', inn:'20487199203481', license:'YK-KG-00112', director:'Сатыбалдиев Э.', phone:'+996 555 88-42-15', revenue:1620000, tax:162000, compliance:55, status:'suspended', licenseExpiry:'02.01.2026' },
+      { id:'OP-00110', name:'Отель "Hyatt Bishkek"', type:'Отель', region:'Бишкек', inn:'00108201510022', license:'HT-KG-00001', director:'International mgmt.', phone:'+996 312 66-12-34', revenue:24500000, tax:2450000, compliance:98, status:'active', licenseExpiry:'01.01.2030' },
+      { id:'OP-00111', name:'ОсОО "Nomad Trails"', type:'ОсОО', region:'Каракол', inn:'00108202310621', license:'TO-KG-00487', director:'Джакыпов Т.', phone:'+996 706 12-88-44', revenue:1890000, tax:189000, compliance:76, status:'active', licenseExpiry:'20.05.2028' },
+      { id:'OP-00112', name:'Транспорт "Иссык-Куль Транс"', type:'Транспорт', region:'Иссык-Куль', inn:'00108201910412', license:'TR-KG-00298', director:'Байсалов К.', phone:'+996 3947 5-88-12', revenue:2100000, tax:210000, compliance:44, status:'expired', licenseExpiry:'01.05.2026' }
+    ]));
+    const operatorSearch = ref('');
+    const operatorTypeFilter = ref('all');
+    const operatorRegionFilter = ref('all');
+    const operatorStatusFilter = ref('all');
+    const operatorSort = ref({ key:'name', dir:1 });
+    const sortOperators = (k) => { if (operatorSort.value.key === k) operatorSort.value.dir *= -1; else operatorSort.value = { key:k, dir:1 }; };
+    const filteredOperators = computed(() => {
+      const q = operatorSearch.value.trim().toLowerCase();
+      let list = operators.value.filter(o => {
+        if (operatorTypeFilter.value !== 'all' && o.type !== operatorTypeFilter.value) return false;
+        if (operatorRegionFilter.value !== 'all' && o.region !== operatorRegionFilter.value) return false;
+        if (operatorStatusFilter.value !== 'all' && o.status !== operatorStatusFilter.value) return false;
+        if (!q) return true;
+        return o.name.toLowerCase().includes(q) || o.inn.includes(q) || o.license.toLowerCase().includes(q) || o.region.toLowerCase().includes(q);
+      });
+      const k = operatorSort.value.key, d = operatorSort.value.dir;
+      list = list.slice().sort((a,b) => (typeof a[k] === 'number' ? (a[k]-b[k])*d : String(a[k]).localeCompare(String(b[k]))*d));
+      return list;
+    });
+    const operatorKpis = computed(() => {
+      const total = operators.value.length;
+      const active = operators.value.filter(o => o.status === 'active').length;
+      const warnings = operators.value.filter(o => o.status === 'warning').length;
+      const rev = operators.value.reduce((s,o) => s + o.revenue, 0);
+      const tax = operators.value.reduce((s,o) => s + o.tax, 0);
+      return [
+        { label:'Операторов', value:total, hint:'в реестре', tone:'text-slate-500' },
+        { label:'Действует', value:active, hint:Math.round(active/total*100)+'% активны', tone:'text-brand-700' },
+        { label:'Предупреждения', value:warnings, hint:'нужна ревизия', tone:'text-amber-700' },
+        { label:'Оборот', value:formatSom(rev) + ' сом', hint:'месяц', tone:'text-slate-500' },
+        { label:'Налог собрано', value:formatSom(tax) + ' сом', hint:'10% с оборота', tone:'text-brand-700' }
+      ];
+    });
+    const statusPillClass = (s) => s === 'active' ? 'bg-brand-100 text-brand-800 border-brand-200' : s === 'warning' ? 'bg-amber-100 text-amber-800 border-amber-200' : s === 'suspended' ? 'bg-red-100 text-red-800 border-red-200' : 'bg-slate-100 text-slate-700 border-slate-200';
+    const statusLabel = (s) => ({ active:'Действует', warning:'Предупр.', suspended:'Приостан.', expired:'Просрочен' }[s] || s);
+    const operatorForm = ref({ open:false, data:{} });
+    const openOperatorForm = (op) => {
+      operatorForm.value = {
+        open:true,
+        data: op ? { ...op } : { name:'', type:'ОсОО', region:'Бишкек', inn:'', license:'', director:'', phone:'', revenue:0, compliance:80, status:'active', licenseExpiry:'01.01.2029' }
+      };
+    };
+    const saveOperator = () => {
+      const d = operatorForm.value.data;
+      if (!d.name || !d.inn) { showToast('Ошибка', 'Название и ИНН обязательны', 'error'); return; }
+      d.tax = Math.round(d.revenue * 0.1);
+      if (d.id) {
+        const idx = operators.value.findIndex(o => o.id === d.id);
+        if (idx >= 0) operators.value[idx] = { ...d };
+        addAudit('OPERATOR_UPDATED', d.name);
+        showToast('Оператор обновлён', d.name, 'ok');
+      } else {
+        d.id = 'OP-' + String(100 + operators.value.length + Math.floor(Math.random()*90)).padStart(5,'0');
+        operators.value.push({ ...d });
+        addAudit('OPERATOR_CREATED', d.name);
+        showToast('Оператор добавлен', d.name, 'ok');
+      }
+      operatorForm.value.open = false;
+      saveJson('kg-operators', operators.value);
+    };
+    const deleteOperator = (id) => {
+      const op = operators.value.find(o => o.id === id);
+      operators.value = operators.value.filter(o => o.id !== id);
+      addAudit('OPERATOR_DELETED', op?.name || id);
+      operatorForm.value.open = false;
+      saveJson('kg-operators', operators.value);
+      showToast('Оператор удалён', op?.name || id, 'warn');
+    };
+    const toggleOperatorSuspension = (op) => {
+      op.status = op.status === 'suspended' ? 'active' : 'suspended';
+      addAudit(op.status === 'suspended' ? 'OPERATOR_SUSPENDED' : 'OPERATOR_REINSTATED', op.name);
+      saveJson('kg-operators', operators.value);
+      showToast('Статус изменён', op.name + ' → ' + statusLabel(op.status), op.status === 'suspended' ? 'warn' : 'ok');
+    };
+    const operatorDetail = ref({ open:false, data:null });
+    const openOperatorDetail = (op) => { operatorDetail.value = { open:true, data: op }; };
+    const defaultAudits = () => [
+      { date:'12.05.2026', type:'Плановая ревизия', body:'ГНС', inspector:'Асанов К.', result:'ok' },
+      { date:'20.02.2026', type:'Проверка лицензии', body:'Минтуризм', inspector:'Османова Б.', result:'ok' },
+      { date:'11.11.2025', type:'Внеплановая', body:'МЧС', inspector:'Кыдыков А.', result:'ok' }
+    ];
+    const scheduleAudit = (op) => { addAudit('AUDIT_SCHEDULED', op.name); showToast('Аудит назначен', op.name + ' · 5 рабочих дней', 'ok'); };
+    const contactOperator = (op) => { showToast('Открыт email', 'Черновик письма ' + op.director + ' <' + op.phone + '>', 'ok'); };
+    const exportOperatorsCsv = () => {
+      const rows = [
+        ['ID','Название','Тип','Регион','ИНН','Лицензия','Директор','Телефон','Оборот','Налог','Compliance','Статус'],
+        ...operators.value.map(o => [o.id, o.name, o.type, o.region, o.inn, o.license, o.director, o.phone, o.revenue, o.tax, o.compliance, statusLabel(o.status)])
+      ];
+      csvDownload('operators-registry-' + new Date().toISOString().slice(0,10) + '.csv', rows);
+      addAudit('EXPORT_OPERATORS', 'operators.csv');
+      showToast('CSV сформирован', operators.value.length + ' операторов', 'ok');
+    };
+
+    // ============ REPORTS ============
+    const reportTemplates = [
+      { id:'gns-monthly', name:'ГНС · Ежемесячный', icon:'💰', recipient:'Гос. налоговая служба КР', desc:'Налоговые поступления, разбивка по операторам' },
+      { id:'mia-monthly', name:'МИД · Иностр. туристы', icon:'🛂', recipient:'Министерство иностранных дел', desc:'Прибытия, гражданства, дипломат.события' },
+      { id:'unwto-quarter', name:'UNWTO · Ежеквартальный', icon:'🌐', recipient:'UNWTO / World Tourism Org.', desc:'Международная стат-отчётность' },
+      { id:'gks-quarter', name:'Нацстатком · Ежеквартальный', icon:'📊', recipient:'Нацстатком КР', desc:'Отраслевые показатели' },
+      { id:'mes-monthly', name:'МЧС · Происшествия', icon:'🚨', recipient:'МЧС КР', desc:'Инциденты, реагирование, статистика SAR' },
+      { id:'audit-custom', name:'Внутренний аудит', icon:'📋', recipient:'Замминистра', desc:'Произвольный срез для решений' }
+    ];
+    const today = new Date();
+    const monthAgo = new Date(Date.now() - 30*86400000);
+    const reportForm = ref({
+      template:'gns-monthly',
+      from: monthAgo.toISOString().slice(0,10),
+      to: today.toISOString().slice(0,10),
+      format:'csv',
+      note:''
+    });
+    const reportPreview = computed(() => {
+      const days = Math.max(1, Math.round((new Date(reportForm.value.to) - new Date(reportForm.value.from)) / 86400000));
+      const revenue = Math.round(218 * (days / 30));
+      const tax = Math.round(revenue * 0.1 * 1000000);
+      const trans = Math.round(14728 * (days / 30));
+      const t = reportTemplates.find(x => x.id === reportForm.value.template);
+      const base = [
+        { label:'Шаблон', value: t.name },
+        { label:'Получатель', value: t.recipient },
+        { label:'Период', value: days + ' дн. · ' + reportForm.value.from + ' → ' + reportForm.value.to },
+        { label:'Формат', value: reportForm.value.format.toUpperCase() }
+      ];
+      if (reportForm.value.template === 'gns-monthly') {
+        return [...base,
+          { label:'Оборот', value: formatSom(revenue) + ' млн сом' },
+          { label:'Налог 10%', value: formatSom(tax) + ' сом' },
+          { label:'Транзакций', value: trans.toLocaleString('ru-RU') }
+        ];
+      }
+      if (reportForm.value.template === 'mia-monthly') {
+        return [...base,
+          { label:'Иностр. туристов', value: trans.toLocaleString('ru-RU') },
+          { label:'Стран-источников', value:'42' },
+          { label:'Дипломат. событий', value:'3 (Корея, Германия, Япония)' }
+        ];
+      }
+      if (reportForm.value.template === 'mes-monthly') {
+        return [...base,
+          { label:'Инцидентов', value: incidents.value.length },
+          { label:'Разрешено', value: incidents.value.filter(i => i.status === 'resolved').length },
+          { label:'Активные', value: activeIncidents.value.length }
+        ];
+      }
+      return [...base, { label:'Записей', value: trans.toLocaleString('ru-RU') }];
+    });
+    const reportsHistory = ref(loadJson('kg-reports', [
+      { id:'RPT-2026-0501', title:'ГНС · Апрель 2026', recipient:'ГНС КР', period:'01.04 – 30.04.2026', signed:'01.05.2026 08:32', status:'delivered' },
+      { id:'RPT-2026-0501-B', title:'МИД · Апрель 2026', recipient:'МИД КР', period:'01.04 – 30.04.2026', signed:'01.05.2026 08:34', status:'delivered' },
+      { id:'RPT-2026-0410', title:'UNWTO · Q1 2026', recipient:'UNWTO', period:'01.01 – 31.03.2026', signed:'10.04.2026 14:12', status:'delivered' },
+      { id:'RPT-2026-0601', title:'ГНС · Май 2026', recipient:'ГНС КР', period:'01.05 – 31.05.2026', signed:'01.06.2026 08:28', status:'delivered' }
+    ]));
+    const previewReport = () => showToast('Предпросмотр', 'Данные пересчитаны', 'ok');
+    const generateReport = () => {
+      const t = reportTemplates.find(x => x.id === reportForm.value.template);
+      const rid = 'RPT-' + new Date().toISOString().replace(/[^0-9]/g,'').slice(0,12);
+      const entry = {
+        id: rid,
+        title: t.name + ' · ' + new Date(reportForm.value.from).toLocaleDateString('ru-RU', { month:'long', year:'numeric' }),
+        recipient: t.recipient,
+        period: reportForm.value.from + ' – ' + reportForm.value.to,
+        signed: new Date().toLocaleString('ru-RU', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' }),
+        status:'sent',
+        _payload: reportPreview.value,
+        _format: reportForm.value.format,
+        _note: reportForm.value.note
+      };
+      reportsHistory.value.unshift(entry);
+      saveJson('kg-reports', reportsHistory.value);
+      addAudit('REPORT_GENERATED', entry.title);
+      setTimeout(() => { entry.status = 'delivered'; saveJson('kg-reports', reportsHistory.value); showToast('Доставлен', entry.title, 'ok'); }, 2200);
+      showToast('Отчёт отправлен', entry.title + ' → ' + entry.recipient, 'ok');
+      downloadReport(entry);
+    };
+    const downloadReport = (r) => {
+      if (r._format === 'json' || !r._format) {
+        const blob = new Blob([JSON.stringify(r, null, 2)], { type:'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a'); a.href = url; a.download = r.id + '.json'; a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+      } else {
+        const rows = [['Поле','Значение'], ...(r._payload || reportPreview.value).map(row => [row.label, row.value])];
+        csvDownload(r.id + '.csv', rows);
+      }
+    };
+    const resendReport = (r) => { r.status = 'sent'; setTimeout(() => { r.status = 'delivered'; saveJson('kg-reports', reportsHistory.value); }, 1600); addAudit('REPORT_RESENT', r.id); showToast('Повторно отправлено', r.title, 'ok'); };
+    const removeReport = (r) => { reportsHistory.value = reportsHistory.value.filter(x => x.id !== r.id); saveJson('kg-reports', reportsHistory.value); addAudit('REPORT_DELETED', r.id); showToast('Удалено', r.title, 'warn'); };
+
+    // ============ CRISIS / INCIDENTS ============
+    const incidents = ref(loadJson('kg-incidents', [
+      { id:'INC-2026-0610-01', title:'Травма на треккинге', icon:'🩹', severity:'critical', region:'Ала-Арча', gps:'42.6321, 74.4881', tourist:'Sato Hiroshi', nationality:'Япония', embassy:'Посольство Японии, +996 312 66-92-32', guide:'Назгуль Орозова', guidePhone:'+996 555 12-84-89', altitude:2840, weather:'Гроза, ветер 18 м/с',
+        status:'active', createdAt: Date.now() - 12*60000, tsFmt:'12 мин назад', desc:'Турист поскользнулся на 2840 м, подозрение на перелом лодыжки.',
+        timeline:[
+          { title:'Сигнал получен', desc:'От гида по GPS-трекеру', done:true, time:'14:09' },
+          { title:'Оператор кризис-центра назначен', desc:'Байтемирова А.', done:true, time:'14:10' },
+          { title:'МЧС уведомлено', desc:'Спасательный отряд №2 (Ала-Арча)', done:true, time:'14:12' },
+          { title:'Посольство уведомлено', desc:'Дежурный консул', done:true, time:'14:14' },
+          { title:'Эвакуация', desc:'Вертолёт МЧС · ETA 18 мин', done:false, time:'' },
+          { title:'Госпитализация', desc:'Больница №4 Бишкек', done:false, time:'' },
+          { title:'Пресс-релиз (при необходимости)', desc:'Согласовано с МИД', done:false, time:'' }
+        ] },
+      { id:'INC-2026-0610-02', title:'Закрыт перевал Тоо-Ашуу', icon:'⛰️', severity:'high', region:'Чуй', gps:'42.5311, 73.4102', tourist:'12 туристических групп', nationality:'смешанное', embassy:'—', guide:'коллективный', guidePhone:'—', altitude:3184, weather:'Камнепад · дождь',
+        status:'active', createdAt: Date.now() - 40*60000, tsFmt:'40 мин назад', desc:'Камнепад перекрыл дорогу М-41 (км 142). 12 туров перенаправлены.',
+        timeline:[
+          { title:'Сигнал получен', desc:'От патруля ГАИ', done:true, time:'13:41' },
+          { title:'Роутинг платформы', desc:'Автоматический перерасчёт маршрутов', done:true, time:'13:43' },
+          { title:'МЧС уведомлено', desc:'Расчистка обломков', done:true, time:'13:45' },
+          { title:'Уведомления гидам', desc:'Push + SMS всем гидам в маршруте', done:true, time:'13:46' },
+          { title:'Открытие движения', desc:'Ожидается 18:00', done:false, time:'' }
+        ] },
+      { id:'INC-2026-0609-03', title:'Пропажа турист·а', icon:'🛑', severity:'high', region:'Сон-Куль', gps:'41.8092, 75.1478', tourist:'Emma Larsen', nationality:'Норвегия', embassy:'Дежурный EU-консул', guide:'Айсулуу Б.', guidePhone:'+996 706 88-42-11', altitude:3016, weather:'Ясно, холод',
+        status:'resolved', createdAt: Date.now() - 22*3600000, tsFmt:'вчера · 16:20', desc:'Турист·а отделилась от группы на 4 часа. Обнаружена в лагере №2.',
+        timeline:[
+          { title:'Сигнал получен', desc:'От гида группы', done:true, time:'16:20' },
+          { title:'Поисковая операция', desc:'Пеший расчёт МЧС', done:true, time:'16:35' },
+          { title:'Найдена', desc:'Через 3ч 40мин, лагерь №2', done:true, time:'20:12' },
+          { title:'Медосмотр', desc:'Без травм, лёгкое обезвоживание', done:true, time:'20:45' }
+        ] },
+      { id:'INC-2026-0608-04', title:'ДТП транспорт', icon:'🚗', severity:'med', region:'Иссык-Куль', gps:'42.6410, 76.9821', tourist:'Wang Lei · группа 3', nationality:'Китай', embassy:'Посольство КНР', guide:'Айгуль Б.', guidePhone:'+996 550 12-42-89', altitude:1668, weather:'Ясно',
+        status:'resolved', createdAt: Date.now() - 3*86400000, tsFmt:'3 дня назад', desc:'Мелкое ДТП без пострадавших. Оператор заменил транспорт за 40 мин.',
+        timeline:[
+          { title:'Сигнал получен', desc:'От гида', done:true, time:'10:44' },
+          { title:'Резервный транспорт', desc:'Land Cruiser №01KG742AB', done:true, time:'11:24' },
+          { title:'Продолжение маршрута', desc:'Задержка 40 минут', done:true, time:'11:30' }
+        ] }
+    ]));
+    const activeIncidents = computed(() => incidents.value.filter(i => i.status === 'active'));
+    const incidentFilter = ref('all');
+    const incidentFilters = [
+      { value:'all', label:'Все' },
+      { value:'active', label:'Активные' },
+      { value:'resolved', label:'Закрытые' }
+    ];
+    const filteredIncidents = computed(() => {
+      if (incidentFilter.value === 'active') return incidents.value.filter(i => i.status === 'active');
+      if (incidentFilter.value === 'resolved') return incidents.value.filter(i => i.status === 'resolved');
+      return incidents.value;
+    });
+    const selectedIncident = ref(null);
+    const selectIncident = (inc) => { selectedIncident.value = inc; };
+    const incStatusLabel = (s) => ({ active:'АКТИВЕН', resolved:'Закрыт', pending:'Ожидает' })[s] || s;
+    const incStatusPill = (s) => s === 'active' ? 'bg-red-600 text-white' : s === 'resolved' ? 'bg-brand-100 text-brand-800 border border-brand-200' : 'bg-amber-100 text-amber-800';
+    const severityClass = (s) => s === 'critical' ? 'bg-red-600 text-white' : s === 'high' ? 'bg-red-100 text-red-800' : s === 'med' ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-700';
+    const emergencyResources = ref([
+      { type:'МЧС отряды', icon:'🚨', available:4, total:6 },
+      { type:'Вертолёты', icon:'🚁', available:1, total:2 },
+      { type:'СММП бригады', icon:'🚑', available:8, total:12 },
+      { type:'Спасатели', icon:'🥾', available:22, total:28 },
+      { type:'Транспорт резерв', icon:'🚙', available:14, total:18 },
+      { type:'Переводчики', icon:'🗣️', available:6, total:9 },
+      { type:'Психологи', icon:'🧠', available:2, total:3 },
+      { type:'Полиция сопр.', icon:'👮', available:11, total:16 }
+    ]);
+    const dispatchResource = (res) => {
+      if (res.available <= 0) { showToast('Недоступно', res.type + ' — все заняты', 'error'); return; }
+      res.available -= 1;
+      addAudit('RESOURCE_DISPATCHED', res.type);
+      showToast('Направлено', res.type + ' → ' + (selectedIncident.value?.region || 'регион'), 'ok');
+      setTimeout(() => { res.available += 1; }, 30000);
+    };
+    const markTimelineStep = (step) => {
+      step.done = true;
+      step.time = new Date().toLocaleTimeString('ru-RU', { hour:'2-digit', minute:'2-digit' });
+      saveJson('kg-incidents', incidents.value);
+      showToast('Шаг закрыт', step.title, 'ok', 2200);
+    };
+    const callResource = (name) => { addAudit('CALL_' + name.toUpperCase(), selectedIncident.value?.id || ''); showToast('Звонок инициирован', name + ' на связи', 'ok'); };
+    const broadcastIncident = () => { addAudit('INCIDENT_BROADCAST', selectedIncident.value?.id || ''); showToast('Уведомление разослано', 'Все гиды в регионе получили push', 'ok'); };
+    const resolveIncident = (inc) => {
+      inc.status = 'resolved';
+      inc.timeline.forEach(s => { if (!s.done) { s.done = true; s.time = new Date().toLocaleTimeString('ru-RU', { hour:'2-digit', minute:'2-digit' }); }});
+      saveJson('kg-incidents', incidents.value);
+      addAudit('INCIDENT_RESOLVED', inc.id);
+      showToast('Инцидент закрыт', inc.title, 'ok');
+    };
+    const incidentForm = ref({ open:false, data:{} });
+    const openIncidentForm = (inc) => {
+      incidentForm.value = {
+        open:true,
+        data: inc ? { ...inc } : { title:'', icon:'🚨', severity:'high', region:'Бишкек', gps:'', tourist:'', nationality:'', guide:'', guidePhone:'', embassy:'—', altitude:0, weather:'', desc:'' }
+      };
+    };
+    const saveIncident = () => {
+      const d = incidentForm.value.data;
+      if (!d.title) { showToast('Ошибка', 'Заголовок обязателен', 'error'); return; }
+      d.id = 'INC-' + new Date().toISOString().slice(0,10).replace(/-/g,'') + '-' + String(incidents.value.length + 1).padStart(2,'0');
+      d.status = 'active';
+      d.createdAt = Date.now();
+      d.tsFmt = 'сейчас';
+      d.timeline = [
+        { title:'Сигнал получен', desc:'Регистрация в системе', done:true, time: new Date().toLocaleTimeString('ru-RU', { hour:'2-digit', minute:'2-digit' }) },
+        { title:'Оператор назначен', desc:'Автоматическое назначение', done:false, time:'' },
+        { title:'Ресурс направлен', desc:'МЧС / СММП', done:false, time:'' },
+        { title:'На месте', desc:'Первое реагирование', done:false, time:'' },
+        { title:'Резолюция', desc:'Закрытие инцидента', done:false, time:'' }
+      ];
+      incidents.value.unshift(d);
+      saveJson('kg-incidents', incidents.value);
+      addAudit('INCIDENT_CREATED', d.title);
+      showToast('ЧС зарегистрировано', d.id, 'warn');
+      incidentForm.value.open = false;
+      selectedIncident.value = d;
+      notifications.value.unshift({ id: Date.now(), priority:'high', icon:'🚨', title:'Новое ЧС · ' + d.title, text: d.region + ' · ' + d.tourist, time:'сейчас', read:false, route:'crisis' });
+    };
+
+    // ============ SETTINGS ============
+    const settings = ref(loadJson('kg-settings', {
+      profile: { name:'Мамасалиев Айбек', title:'Замминистра туризма КР', email:'a.mamasaliev@tourism.gov.kg', phone:'+996 312 62-04-88', lang:'ru' },
+      notifPrefs: [
+        { key:'emergency', label:'Экстренные вызовы (SOS)', desc:'Незамедлительное информирование о ЧС', channels:['email','sms','push'] },
+        { key:'reports', label:'Готовность отчётов', desc:'Уведомление о сформированных отчётах', channels:['email','push'] },
+        { key:'operators', label:'Действия с операторами', desc:'Приостановка, восстановление, новые регистрации', channels:['email'] },
+        { key:'analytics', label:'Аналитические алерты', desc:'Аномалии, пиковые загрузки, прогнозы', channels:['push'] },
+        { key:'audit', label:'Аудит-события', desc:'Действия других пользователей платформы', channels:[] }
+      ],
+      integrations: [
+        { key:'tundyk', name:'Tundyk (ЕСР МВД)', icon:'🛂', desc:'Биометрическая верификация, паспорта, ИНН', connected:true, lastSync:'сегодня 14:32' },
+        { key:'gns', name:'ГНС · SkanKZ API', icon:'💰', desc:'Автоматическое удержание налогов и отчётность', connected:true, lastSync:'сегодня 14:15' },
+        { key:'budget', name:'budget.gov.kg', icon:'📊', desc:'Публикация налоговых поступлений', connected:true, lastSync:'сегодня 12:00' },
+        { key:'mia', name:'МИД · CIVIL API', icon:'🌐', desc:'Визовые данные и учёт прибытий', connected:true, lastSync:'сегодня 13:40' },
+        { key:'mes', name:'МЧС · EmergencyBus', icon:'🚨', desc:'Двусторонняя связь для SOS-события', connected:true, lastSync:'live' },
+        { key:'meteo', name:'ГидроМет', icon:'🌦️', desc:'Погодные данные и прогнозы для регионов', connected:true, lastSync:'сегодня 14:00' },
+        { key:'tripsoda', name:'Tripsoda Pay', icon:'💳', desc:'Платёжная шина и эквайринг', connected:true, lastSync:'live' },
+        { key:'chain', name:'TourismChain KG', icon:'🔗', desc:'Блокчейн-реестр лицензий и транзакций', connected:true, lastSync:'live' },
+        { key:'unwto', name:'UNWTO Datastream', icon:'🌍', desc:'Автоматическая передача статистики', connected:false, lastSync:'—' }
+      ],
+      users: [
+        { id:1, name:'Мамасалиев Айбек', initials:'МА', email:'a.mamasaliev@tourism.gov.kg', role:'admin', active:true, color:'#f59e0b' },
+        { id:2, name:'Османова Бермет', initials:'ОБ', email:'b.osmanova@tourism.gov.kg', role:'editor', active:true, color:'#0d9488' },
+        { id:3, name:'Жумалиев Канат', initials:'ЖК', email:'k.zhumaliev@tourism.gov.kg', role:'editor', active:true, color:'#7c3aed' },
+        { id:4, name:'Касымов Тилек', initials:'КТ', email:'t.kasymov@tourism.gov.kg', role:'editor', active:true, color:'#0369a1' },
+        { id:5, name:'Байтемирова Айнура', initials:'БА', email:'a.baytemirova@tourism.gov.kg', role:'editor', active:true, color:'#be185d' },
+        { id:6, name:'Аскарова Гульмира', initials:'АГ', email:'g.askarova@gns.gov.kg', role:'viewer', active:true, color:'#047857' },
+        { id:7, name:'Токтогулов Эрлан', initials:'ТЭ', email:'e.toktogulov@mfa.gov.kg', role:'viewer', active:true, color:'#dc2626' },
+        { id:8, name:'Абдыкадыров Данияр', initials:'АД', email:'d.abdykadyrov@mes.gov.kg', role:'viewer', active:false, color:'#475569' }
+      ]
+    }));
+    const saveSettings = () => { saveJson('kg-settings', settings.value); addAudit('SETTINGS_SAVED', 'profile+prefs'); showToast('Сохранено', 'Настройки обновлены', 'ok'); };
+
+    // ============ AUDIT LOG ============
+    const auditLog = ref(loadJson('kg-audit', []));
+    const addAudit = (action, target) => {
+      const colors = {
+        LICENSE_ISSUED:'bg-brand-100 text-brand-800', LICENSE_REVOKED:'bg-red-100 text-red-800',
+        OPERATOR_CREATED:'bg-brand-100 text-brand-800', OPERATOR_UPDATED:'bg-blue-100 text-blue-800',
+        OPERATOR_DELETED:'bg-red-100 text-red-800', OPERATOR_SUSPENDED:'bg-red-100 text-red-800', OPERATOR_REINSTATED:'bg-brand-100 text-brand-800',
+        REPORT_GENERATED:'bg-brand-100 text-brand-800', REPORT_DELETED:'bg-red-100 text-red-800', REPORT_RESENT:'bg-blue-100 text-blue-800',
+        INCIDENT_CREATED:'bg-red-100 text-red-800', INCIDENT_RESOLVED:'bg-brand-100 text-brand-800',
+        EXPORT_TAX_CSV:'bg-amber-100 text-amber-800', EXPORT_ANALYTICS:'bg-amber-100 text-amber-800', EXPORT_OPERATORS:'bg-amber-100 text-amber-800',
+        SETTINGS_SAVED:'bg-slate-100 text-slate-700', DISPATCH_TASK_CREATED:'bg-amber-100 text-amber-800',
+        RESOURCE_DISPATCHED:'bg-blue-100 text-blue-800', INCIDENT_BROADCAST:'bg-amber-100 text-amber-800',
+        AUDIT_SCHEDULED:'bg-blue-100 text-blue-800'
+      };
+      auditLog.value.push({
+        id: Date.now(),
+        time: new Date().toLocaleTimeString('ru-RU', { hour:'2-digit', minute:'2-digit', second:'2-digit' }),
+        user: settings.value.profile.name,
+        action, target,
+        color: colors[action] || 'bg-slate-100 text-slate-700',
+        hash: '0x' + Math.random().toString(16).slice(2,10)
+      });
+      if (auditLog.value.length > 200) auditLog.value = auditLog.value.slice(-200);
+      saveJson('kg-audit', auditLog.value);
+    };
+    const clearAuditLog = () => { auditLog.value = []; saveJson('kg-audit', auditLog.value); showToast('Кеш очищен', 'Локальный аудит-лог', 'warn'); };
+
+    // ============ STORAGE HELPERS ============
+    function loadJson(key, fallback) {
+      try {
+        const raw = localStorage.getItem(key);
+        return raw ? JSON.parse(raw) : fallback;
+      } catch { return fallback; }
+    }
+    function saveJson(key, val) {
+      try { localStorage.setItem(key, JSON.stringify(val)); } catch {}
+    }
+
+    // ============ AGGRESSIVE SIMULATION ============
+    const randTxServices = [
+      { s:'Тур · Иссык-Куль 3 дня', p:'Азамат Асанов', a: [42000, 58000] },
+      { s:'Трекинг Ала-Арча', p:'Назгуль Орозова', a: [7800, 14500] },
+      { s:'Каракол + Джеты-Огуз', p:'Чолпон Жумабаева', a: [22000, 42000] },
+      { s:'Конный тур Сон-Куль', p:'Айсулуу Бегалиева', a: [38000, 62000] },
+      { s:'Юрт-кемпинг 2 ночи', p:'ИП Орозбекова Г.', a: [22000, 34000] },
+      { s:'Гастротур Бишкек', p:'ОсОО "Кыргыз Тур"', a: [12000, 22000] },
+      { s:'Восхождение Сулайман-Тоо', p:'Данияр Абдыкадыров', a: [6000, 12000] },
+      { s:'Обзорная Бишкек', p:'Назгуль Орозова', a: [5000, 9000] },
+      { s:'Термальные Джалал-Абад', p:'Рустам Джолдошев', a: [8000, 16000] }
+    ];
+    let txCounter = 8830;
+    const injectRandomTx = () => {
+      const t = randTxServices[Math.floor(Math.random() * randTxServices.length)];
+      const amt = Math.round(t.a[0] + Math.random() * (t.a[1] - t.a[0]));
+      const now = new Date();
+      const id = 'TX-' + now.toISOString().slice(0,10).replace(/-/g,'-').slice(0,10) + '-' + (++txCounter);
+      const tx = { id, time: now.toLocaleTimeString('ru-RU', { hour:'2-digit', minute:'2-digit' }), service: t.s, provider: t.p, amount: amt };
+      transactions.value.unshift(tx);
+      if (transactions.value.length > 20) transactions.value.pop();
+      totalTransactions.value += 1;
+      estimatedRevenue.value += amt;
+      blockchainTxs.value.unshift({ type:'PAYMENT_SETTLED', label:'Налог удержан: ' + id + ' (' + formatSom(amt * 0.1) + ' сом)', hash:'0x' + Math.random().toString(16).slice(2,6) + '..' + Math.random().toString(16).slice(2,6), block: currentBlock.value, validator:'node-' + ['bishkek','osh','karakol','jalalabad'][Math.floor(Math.random()*4)] + '-0' + (Math.floor(Math.random()*3)+1), time: now.toLocaleTimeString('ru-RU'), amount: formatSom(amt * 0.1) + ' сом', confirmations: 1 });
+      if (blockchainTxs.value.length > 20) blockchainTxs.value.pop();
+    };
+    const movePins = () => {
+      mapPins.value.forEach(p => {
+        p.x = Math.max(50, Math.min(700, p.x + (Math.random() - 0.5) * 12));
+        p.y = Math.max(90, Math.min(380, p.y + (Math.random() - 0.5) * 8));
+      });
+    };
+    const fluctuateLoad = () => {
+      Object.keys(regionLoad.value).forEach(k => {
+        regionLoad.value[k] = Math.max(15, Math.min(95, regionLoad.value[k] + (Math.random() - 0.5) * 6));
+      });
+      regionStats.value.forEach(r => {
+        r.load = Math.max(15, Math.min(95, r.load + (Math.random() - 0.5) * 4));
+        r.tourists = Math.max(20, Math.min(400, r.tourists + Math.round((Math.random() - 0.5) * 6)));
+      });
+    };
+    const wanderWeather = () => {
+      weatherRisk.value.forEach(w => {
+        w.temp = Math.max(-5, Math.min(35, w.temp + Math.round((Math.random() - 0.5) * 2)));
+        w.score = Math.max(30, Math.min(98, w.score + Math.round((Math.random() - 0.5) * 4)));
+      });
+    };
+    const advanceBookings = () => {
+      const chain = ['pending','confirmed','inprogress','completed'];
+      bookings.value.forEach(b => {
+        if (b.status === 'emergency') return;
+        if (Math.random() > 0.85) {
+          const idx = chain.indexOf(b.status);
+          if (idx >= 0 && idx < chain.length - 1 && Math.random() > 0.4) b.status = chain[idx + 1];
+        }
+      });
+    };
+    const rareSosSpawn = () => {
+      if (Math.random() < 0.08 && activeIncidents.value.length < 3) {
+        const regions = ['Ала-Арча','Сон-Куль','Каракол','Сары-Челек','Ош'];
+        const region = regions[Math.floor(Math.random() * regions.length)];
+        const inc = {
+          id:'INC-' + new Date().toISOString().slice(0,10).replace(/-/g,'') + '-' + String(incidents.value.length + 1).padStart(2,'0'),
+          title:'Автосигнал GPS · нужна проверка',
+          icon:'🚨', severity:'high', region, gps:(41 + Math.random()).toFixed(4) + ', ' + (74 + Math.random() * 3).toFixed(4),
+          tourist:'GPS-трекер группы', nationality:'смешанное', embassy:'—',
+          guide:'по маршруту', guidePhone:'—', altitude: Math.round(1800 + Math.random() * 1500), weather:'проверка',
+          status:'active', createdAt: Date.now(), tsFmt:'только что',
+          desc:'Автоматический сигнал GPS-трекера. Требуется голосовая связь с гидом.',
+          timeline:[
+            { title:'Сигнал получен', desc:'Автоматически по GPS', done:true, time: new Date().toLocaleTimeString('ru-RU', { hour:'2-digit', minute:'2-digit' }) },
+            { title:'Связь с гидом', desc:'Голосовой звонок', done:false, time:'' },
+            { title:'Верификация', desc:'Ложный/реальный', done:false, time:'' }
+          ]
+        };
+        incidents.value.unshift(inc);
+        saveJson('kg-incidents', incidents.value);
+        notifications.value.unshift({ id: Date.now(), priority:'high', icon:'🚨', title:'Авто-SOS · ' + region, text:'GPS-трекер выдал аварийный сигнал. Требуется проверка.', time:'сейчас', read:false, route:'crisis' });
+        showToast('Авто-SOS', region + ' · проверка', 'warn');
+      }
+    };
+
+    let timer, blockTimer, txTimer, pinTimer, loadTimer, weatherTimer, bookTimer, sosTimer;
     onMounted(() => {
+      initRoute();
+      window.addEventListener('hashchange', onHashChange);
       updateTime();
       timer = setInterval(updateTime, 30000);
       blockTimer = setInterval(() => { currentBlock.value += Math.floor(Math.random()*3)+1; }, 5000);
+      txTimer = setInterval(injectRandomTx, 4200);
+      pinTimer = setInterval(movePins, 3000);
+      loadTimer = setInterval(fluctuateLoad, 6500);
+      weatherTimer = setInterval(wanderWeather, 12000);
+      bookTimer = setInterval(advanceBookings, 8000);
+      sosTimer = setInterval(rareSosSpawn, 22000);
+
+      routes.value[2].badge = operators.value.filter(o => o.status === 'warning' || o.status === 'expired').length || '';
+      routes.value[4].badge = activeIncidents.value.length || '';
+
+      // Reactive badge updates
+      setInterval(() => {
+        routes.value[2].badge = operators.value.filter(o => o.status === 'warning' || o.status === 'expired').length || '';
+        routes.value[4].badge = activeIncidents.value.length || '';
+      }, 3000);
     });
-    onUnmounted(() => { clearInterval(timer); clearInterval(blockTimer); });
+    onUnmounted(() => {
+      window.removeEventListener('hashchange', onHashChange);
+      [timer, blockTimer, txTimer, pinTimer, loadTimer, weatherTimer, bookTimer, sosTimer].forEach(t => clearInterval(t));
+    });
 
     return {
+      // Time / core
       currentTime, strategicKpis, tickerMessages, notifications, showNotifications,
-      guides, toggleGuide, applications, startIssuanceFromApp,
+      // Router / toasts
+      routes, currentRoute, navigateTo, toasts, dismissToast,
+      // Guides / Applications
+      guides, toggleGuide, filteredGuides, guideSearch,
+      applications, startIssuanceFromApp, filteredApplications, applicationSearch, applicationReviewer, reviewerList,
+      // QR
       qrModal, openQrModal, closeQrModal, startIssuance, finalizeIssuance,
+      // Bookings / Live
       regionStats, bookings, bookingFilter, filters, countByStatus, filteredHistory,
       bookingModal, openBookingModal,
+      // Calendar
       weekDays, weekRange, shiftWeek, resetWeek, openEventModal,
-      transactions, totalTransactions, estimatedRevenue, formatSom,
-      mapPins, activeTours, regionFill, filterByRegion,
+      // Tax / Transactions / Chain
+      transactions, totalTransactions, estimatedRevenue, formatSom, exportTaxCsv,
+      currentBlock, blockchainTxs,
+      // Map
+      mapPins, activeTours, regionFill, drilldownRegion, mapLayer, mapLayers,
+      // Weather / Charts
       weatherRisk, monthlyData, taxLinePoints,
       nationalities, donutSegments, taxAllocation,
-      currentBlock, blockchainTxs
+      // Notifications
+      notifFilter, notifFilters, filteredNotifications, markAllNotificationsRead, markNotificationRead, dismissNotification,
+      // Analytics
+      regionOptions, analyticsRegion, analyticsRange, analyticsKpis,
+      heatmap, heatmapColor, heatmapPeak, heatmapCellInfo,
+      regionAnalytics, topAttractions, guideProductivity,
+      forecastPoints, forecastLine, forecastUpper, forecastLower, forecastArea,
+      createDispatchTask, exportAnalyticsCsv,
+      // Operators
+      operators, filteredOperators, operatorKpis, operatorSearch, operatorTypeFilter, operatorRegionFilter, operatorStatusFilter,
+      sortOperators, statusPillClass, statusLabel,
+      operatorForm, openOperatorForm, saveOperator, deleteOperator, toggleOperatorSuspension,
+      operatorDetail, openOperatorDetail, defaultAudits, scheduleAudit, contactOperator, exportOperatorsCsv,
+      // Reports
+      reportTemplates, reportForm, reportPreview, reportsHistory,
+      previewReport, generateReport, downloadReport, resendReport, removeReport,
+      // Incidents / Crisis
+      incidents, activeIncidents, incidentFilter, incidentFilters, filteredIncidents,
+      selectedIncident, selectIncident, incStatusLabel, incStatusPill, severityClass,
+      emergencyResources, dispatchResource, markTimelineStep, callResource, broadcastIncident, resolveIncident,
+      incidentForm, openIncidentForm, saveIncident,
+      // Settings
+      settings, saveSettings,
+      // Audit
+      auditLog, clearAuditLog
     };
   }
 }).mount('#app');
